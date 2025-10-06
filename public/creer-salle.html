@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Créer une salle - Memory Multijoueur</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95) !important;
+            border: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .btn {
+            border: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        .room-code {
+            font-family: 'Courier New', monospace;
+            letter-spacing: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
+        <div class="card shadow-lg" style="width: 500px;">
+            <div class="card-body p-4 text-center">
+                <h2 class="mb-4">Créer une salle</h2>
+                <div id="demande-nom">
+                    <div class="mb-3">
+                        <label for="player-name-input" class="form-label">Votre nom</label>
+                        <input id="player-name-input" class="form-control form-control-lg text-center" maxlength="20" placeholder="Ex: Alice">
+                    </div>
+                    <button id="create-btn" class="btn btn-primary">Créer la salle</button>
+                </div>
+
+                <div id="creation-en-cours" class="d-none">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p>Création de la salle en cours...</p>
+                </div>
+                <div id="salle-cree" class="d-none">
+                    <p>Partagez ce code avec votre adversaire :</p>
+                    <div class="room-code display-4 fw-bold text-primary my-4" id="room-code">XXXXXX</div>
+                    <button id="copier-code-btn" class="btn btn-outline-primary mb-3">
+                        📋 Copier le code
+                    </button>
+                    <p class="text-muted">Redirection vers le jeu...</p>
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Redirection...</span>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <a href="/" class="text-decoration-none">← Retour à l'accueil</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+            <!-- Socket.io client (defines `io`) -->
+            <script src="/socket.io/socket.io.js"></script>
+
+            <script>
+        // Attendre que l'utilisateur saisisse son nom et clique sur créer
+        document.addEventListener('DOMContentLoaded', function() {
+            const createBtn = document.getElementById('create-btn');
+            createBtn.addEventListener('click', () => {
+                const nameInput = document.getElementById('player-name-input');
+                const playerName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'Joueur 1';
+
+                // Afficher le chargement
+                document.getElementById('demande-nom').classList.add('d-none');
+                document.getElementById('creation-en-cours').classList.remove('d-none');
+
+                fetch('/api/creer-salle', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Erreur réseau');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('creation-en-cours').classList.add('d-none');
+                        document.getElementById('salle-cree').classList.remove('d-none');
+                        document.getElementById('room-code').textContent = data.roomCode;
+
+                        // Ensure persistent playerId and store playerName
+                        let playerId = localStorage.getItem('playerId');
+                        if (!playerId) {
+                            playerId = 'p-' + Math.random().toString(36).slice(2,10);
+                            localStorage.setItem('playerId', playerId);
+                        }
+                        localStorage.setItem('playerName', playerName);
+
+                        // Copier le code dans le presse-papier
+                        document.getElementById('copier-code-btn').addEventListener('click', () => {
+                            navigator.clipboard.writeText(data.roomCode).then(() => {
+                                alert('Code copié dans le presse-papier !');
+                            });
+                        });
+
+                        // Connecter le socket et émettre la création + rejoindre
+                        const socket = io();
+                        socket.on('connect', () => {
+                            socket.emit('creer-salle', {
+                                roomCode: data.roomCode,
+                                playerName: playerName,
+                                playerId: playerId
+                            });
+                        });
+
+                        // Store room info in localStorage and redirect without exposing it in the URL
+                        localStorage.setItem('roomCode', data.roomCode);
+                        localStorage.setItem('playerName', playerName);
+                        // Rediriger vers la page de jeu après un court délai (sans query string)
+                        setTimeout(() => {
+                            window.location.href = '/jeu';
+                        }, 800);
+
+                    } else {
+                        throw new Error('Erreur lors de la création de la salle');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la création de la salle: ' + error.message);
+                    window.location.href = '/';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
