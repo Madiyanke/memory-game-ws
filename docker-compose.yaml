@@ -22,22 +22,6 @@ services:
     networks:
       - memory-network
 
-  # Optionnel : Ajouter Nginx comme reverse proxy
-  nginx-proxy:
-    image: nginx:alpine
-    container_name: nginx-proxy
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - memory-game
-    networks:
-      - memory-network
-
 networks:
   memory-network:
     driver: bridge
