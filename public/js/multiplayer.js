@@ -9,13 +9,6 @@ class MemoryMultiplayer {
         this.flippedCards = [];
         this.cardsState = {};
 
-        // perf & protection state
-        this._lastFlipTime = 0; // ms timestamp of last flip to avoid extremely rapid clicks
-        this._flipCooldownMs = 120; // debounce rapid clicks
-        this._countdownRaf = null;
-        this._delegatedClickBound = false;
-        this._perf = { frames: 0, lastTime: performance.now(), fps: 0, frameTimes: [] };
-
         this.init();
     }
 
@@ -23,8 +16,6 @@ class MemoryMultiplayer {
         this.setupSocketEvents();
         this.setupUIEvents();
         this.loadRoomFromURL();
-        // start lightweight perf instrumentation and periodic ping
-        try { this.initPerf(); this.startPing(); } catch (e) { /* non-fatal */ }
     }
 
     setupSocketEvents() {
@@ -40,16 +31,7 @@ class MemoryMultiplayer {
         this.socket.on('changement-tour-timeout', (data) => { this.showMessage('⏰ Temps écoulé ! Changement de tour'); this.switchTurn(data.nouveauJoueur); });
         this.socket.on('cacher-cartes', (data) => this.hideCards(data.card1Index, data.card2Index));
         this.socket.on('partie-terminee', (data) => this.showGameResult(data));
-        this.socket.on('timer-start', (data) => this.handleTimerStart(data));
-        // reply from server for perf ping
-        this.socket.on('perf-pong', (payload) => {
-            try {
-                if (payload && payload.id && payload.ts) {
-                    const rtt = Date.now() - payload.ts;
-                    navigator.sendBeacon?.('/perf-collect', JSON.stringify({ type: 'rtt', rtt, ts: Date.now() }));
-                }
-            } catch (e) {}
-        });
+    this.socket.on('timer-start', (data) => this.handleTimerStart(data));
         this.socket.on('joueur-deconnecte', (data) => this.showMessage(`⚠️ ${data.message}`));
         this.socket.on('erreur', (data) => this.showMessage(`❌ ${data.message}`));
         this.socket.on('salle_pleine', (data) => { this.showMessage(`❌ ${data.message}`); setTimeout(() => window.location.href = '/', 2000); });
@@ -213,31 +195,15 @@ class MemoryMultiplayer {
     generateGameBoard() {
         const gameBoard = document.getElementById('game-board');
         if (!gameBoard) return;
-        // Build cards using a fragment to minimize reflows.
-        const frag = document.createDocumentFragment();
-        const total = 16;
-        for (let i = 0; i < total; i++) {
+        gameBoard.innerHTML = '';
+
+        for (let i = 0; i < 16; i++) {
             const card = document.createElement('div');
             card.className = 'carte';
             card.dataset.index = i;
             card.innerHTML = `\n                <div class="carte-inner">\n                    <div class="carte-face carte-recto">?</div>\n                    <div class="carte-face carte-verso">?</div>\n                </div>\n            `;
-            frag.appendChild(card);
-        }
-        gameBoard.innerHTML = '';
-        gameBoard.appendChild(frag);
-
-        // attach a single delegated click handler to avoid many listeners
-        if (!this._delegatedClickBound) {
-            gameBoard.addEventListener('click', (e) => {
-                const cardEl = e.target.closest('.carte');
-                if (!cardEl) return;
-                const idx = Number(cardEl.dataset.index);
-                const now = Date.now();
-                if (now - this._lastFlipTime < this._flipCooldownMs) return;
-                this._lastFlipTime = now;
-                this.flipCard(idx);
-            });
-            this._delegatedClickBound = true;
+            card.addEventListener('click', () => this.flipCard(i));
+            gameBoard.appendChild(card);
         }
 
         this.updateCardsState();
@@ -307,25 +273,21 @@ class MemoryMultiplayer {
         const duration = data.duration || 10;
         const start = data.startedAt || Date.now();
 
-        // circle radius is 30 in the SVG; circumference = 2 * PI * r
-        const radius = 30;
-        const circumference = 2 * Math.PI * radius;
+    // circle radius is 30 in the SVG; circumference = 2 * PI * r
+    const radius = 30;
+    const circumference = 2 * Math.PI * radius;
 
-        fg.style.strokeDasharray = `${circumference}`;
-        fg.style.strokeDashoffset = `0`;
-
-        // cancel previous RAF if any
-        if (this._countdownRaf) { cancelAnimationFrame(this._countdownRaf); this._countdownRaf = null; }
-
-        const rafTick = () => {
+        const tick = () => {
             const elapsed = (Date.now() - start) / 1000;
             const remaining = Math.max(0, Math.ceil(duration - elapsed));
             countdownEl.textContent = remaining;
 
             const ratio = Math.max(0, Math.min(1, 1 - elapsed / duration));
             const offset = circumference * (1 - ratio);
+            // update stroke-dashoffset (because SVG rotated -90deg, offset visually shows proper progress)
             fg.style.strokeDashoffset = `${offset}`;
 
+            // low-time visual cue
             if (remaining <= 3) {
                 timerRoot.classList.add('timer-danger');
                 timerRoot.classList.add('pulse');
@@ -337,9 +299,12 @@ class MemoryMultiplayer {
             }
 
             if (remaining <= 0) {
+                if (this._countdownInterval) { clearInterval(this._countdownInterval); this._countdownInterval = null; }
+                // pop animation + short sound feedback
                 try {
                     timerRoot.classList.add('timer-pop');
                     setTimeout(() => timerRoot.classList.remove('timer-pop'), 700);
+                    // short click/pop using WebAudio
                     const ctx = new (window.AudioContext || window.webkitAudioContext)();
                     const o = ctx.createOscillator();
                     const g = ctx.createGain();
@@ -350,54 +315,20 @@ class MemoryMultiplayer {
                     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.22);
                     o.connect(g); g.connect(ctx.destination);
                     o.start(); o.stop(ctx.currentTime + 0.23);
-                } catch (e) {}
-                return;
+                } catch (e) {
+                    // ignore audio errors
+                }
             }
-
-            this._countdownRaf = requestAnimationFrame(rafTick);
         };
 
-        this._countdownRaf = requestAnimationFrame(rafTick);
-    }
+        // initialize stroke-dasharray/dashoffset
+        fg.style.strokeDasharray = `${circumference}`;
+        fg.style.strokeDashoffset = `0`;
 
-    // initialize lightweight perf instrumentation
-    initPerf() {
-        const perf = this._perf;
-        let lastRAF = performance.now();
-        const loop = (ts) => {
-            perf.frames++;
-            const dt = ts - lastRAF;
-            lastRAF = ts;
-            perf.frameTimes.push(dt);
-            if (perf.frameTimes.length > 600) perf.frameTimes.shift();
-
-            const now = performance.now();
-            if (now - perf.lastTime >= 1000) {
-                perf.fps = perf.frames;
-                perf.frames = 0;
-                perf.lastTime = now;
-                try { navigator.sendBeacon?.('/perf-collect', JSON.stringify({ type: 'perf', fps: perf.fps, medianFrame: median(perf.frameTimes), ts: Date.now() })); } catch (e) {}
-            }
-            requestAnimationFrame(loop);
-        };
-        function median(arr){ if(!arr || !arr.length) return 0; const s = arr.slice().sort((a,b)=>a-b); return s[Math.floor(s.length/2)]; }
-        requestAnimationFrame(loop);
-
-        // event-loop lag detector
-        setInterval(() => {
-            const start = Date.now();
-            setTimeout(() => {
-                const lag = Date.now() - start - 0;
-                if (lag > 80) navigator.sendBeacon?.('/perf-collect', JSON.stringify({ type: 'lag', lag, ts: Date.now() }));
-            }, 0);
-        }, 2000);
-    }
-
-    startPing() {
-        if (this._pingInterval) return;
-        this._pingInterval = setInterval(() => {
-            try { const id = Math.random().toString(36).slice(2,9); this.socket.emit('perf-ping', { id, ts: Date.now() }); } catch (e) {}
-        }, 5000);
+        if (this._countdownInterval) clearInterval(this._countdownInterval);
+        this._countdownInterval = setInterval(tick, 200);
+        // run immediately once
+        tick();
     }
 
     showGameResult(data) {
@@ -413,31 +344,9 @@ class MemoryMultiplayer {
     copyRoomCode() { if (!this.roomCode) return; navigator.clipboard.writeText(this.roomCode).then(() => this.showMessage('✅ Code copié dans le presse-papier !')); }
 
     showMessage(message) {
-        const container = document.getElementById('toast-container') || (() => {
-            const c = document.createElement('div');
-            c.id = 'toast-container';
-            c.className = 'position-fixed top-0 end-0 p-3';
-            c.style.zIndex = '9999';
-            c.setAttribute('aria-live', 'polite');
-            document.body.appendChild(c);
-            return c;
-        })();
-
-        const toastEl = document.createElement('div');
-        toastEl.className = 'toast show align-items-center text-wrap';
-        toastEl.setAttribute('role', 'status');
-        toastEl.style.minWidth = '220px';
-        toastEl.style.background = 'linear-gradient(90deg,#0b1220,#0f2946)';
-        toastEl.style.color = '#fff';
-        toastEl.style.border = '1px solid rgba(255,255,255,0.04)';
-        toastEl.innerHTML = `
-            <div class="d-flex">
-              <div class="toast-body">${message}</div>
-              <button type="button" class="btn-close btn-close-white ms-2 me-1" aria-label="Fermer"></button>
-            </div>
-        `;
+        const container = document.getElementById('toast-container') || (() => { const c = document.createElement('div'); c.id = 'toast-container'; c.className = 'position-fixed top-0 end-0 p-3'; c.style.zIndex = '9999'; document.body.appendChild(c); return c; })();
+        const toastEl = document.createElement('div'); toastEl.className = 'toast show'; toastEl.innerHTML = `\n            <div class="toast-header">\n                <strong class="me-auto">Memory</strong>\n                <button type="button" class="btn-close" data-bs-dismiss="toast"></button>\n            </div>\n            <div class="toast-body">${message}</div>\n        `;
         container.appendChild(toastEl);
-        const btn = toastEl.querySelector('.btn-close'); if (btn) btn.addEventListener('click', () => toastEl.remove());
         setTimeout(() => toastEl.remove(), 3000);
     }
 }
