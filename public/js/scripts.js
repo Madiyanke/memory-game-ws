@@ -1,4 +1,4 @@
-   document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function() {
             // Éléments du DOM
             const gameBoard = document.getElementById('game-board');
             const movesDisplay = document.getElementById('moves');
@@ -19,7 +19,11 @@
             let moves = 0;
             let matchedPairs = 0;
             let timer = 0;
-            let timerInterval;
+            let timerInterval = null;
+            let _timerRaf = null;
+            let _timerLastTs = null;
+            let _lastFlipTime = 0;
+            let _flipCooldownMs = 120;
             let gameStarted = false;
             let difficulty = 'easy';
             let score = 0;
@@ -84,7 +88,8 @@
                 // Mélanger les cartes
                 shuffleArray(cardSymbols);
                 
-                // Créer les éléments de carte
+                // Créer les éléments de carte en fragment pour réduire les reflows
+                const frag = document.createDocumentFragment();
                 cardSymbols.forEach((symbol, index) => {
                     const card = document.createElement('div');
                     card.className = 'card';
@@ -97,11 +102,24 @@
                             <div class="card-back">?</div>
                         </div>
                     `;
-                    
-                    card.addEventListener('click', () => flipCard(card));
-                    gameBoard.appendChild(card);
+                    frag.appendChild(card);
                     cards.push(card);
                 });
+                gameBoard.appendChild(frag);
+
+                // Delegated click handler (single listener)
+                if (!gameBoard._delegatedBound) {
+                    gameBoard.addEventListener('click', (e) => {
+                        const card = e.target.closest('.card');
+                        if (!card) return;
+                        if (card.classList.contains('flipped') || card.classList.contains('matched')) return;
+                        const now = Date.now();
+                        if (now - _lastFlipTime < _flipCooldownMs) return;
+                        _lastFlipTime = now;
+                        flipCard(card);
+                    });
+                    gameBoard._delegatedBound = true;
+                }
                 
                 // Ajuster la grille selon la difficulté
                 gameBoard.style.gridTemplateColumns = `repeat(${config.gridColumns}, 1fr)`;
@@ -175,24 +193,38 @@
             // Démarrer le jeu
             function startGame() {
                 gameStarted = true;
-                timerInterval = setInterval(() => {
-                    timer++;
-                    timerDisplay.textContent = `${timer}s`;
-                }, 1000);
+                // use RAF-based timer for better alignment with rendering, avoid setInterval drift
+                _timerLastTs = null;
+                const tick = (ts) => {
+                    if (!_timerLastTs) _timerLastTs = ts;
+                    const delta = ts - _timerLastTs;
+                    if (delta >= 1000) {
+                        const seconds = Math.floor(delta / 1000);
+                        timer += seconds;
+                        _timerLastTs += seconds * 1000;
+                        timerDisplay.textContent = `${timer}s`;
+                    }
+                    _timerRaf = requestAnimationFrame(tick);
+                };
+                _timerRaf = requestAnimationFrame(tick);
             }
             
             // Terminer le jeu
             function endGame() {
-                clearInterval(timerInterval);
-                
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+                if (_timerRaf) { cancelAnimationFrame(_timerRaf); _timerRaf = null; _timerLastTs = null; }
+
                 // Calculer le score final
                 calculateScore(true);
-                
-                // Afficher le modal de victoire
+
+                // Mettre à jour les informations du modal
                 finalMoves.textContent = moves;
                 finalTime.textContent = timer;
                 finalScore.textContent = score;
-                winModal.style.display = 'flex';
+
+                // Afficher le modal de victoire avec Bootstrap
+                const bootstrapModal = new bootstrap.Modal(winModal);
+                bootstrapModal.show();
             }
             
             // Calculer le score

@@ -16,7 +16,9 @@ const io = socketIo(server, {
 
 // Servir les fichiers statiques depuis le dossier public
 app.use(express.static(path.join(__dirname, '../public')));
+// accept JSON bodies and also text bodies (beacon sends text/plain)
 app.use(express.json());
+app.use(express.text({ type: '*/*' }));
 
 const roomManager = new RoomManager();
 
@@ -59,6 +61,23 @@ app.post('/api/rejoindre-salle', (req, res) => {
   res.json({ success: true, room });
 });
 
+// Endpoint to collect lightweight performance telemetry from clients (beacon-friendly)
+app.post('/perf-collect', (req, res) => {
+  try {
+    let body = req.body;
+    // if text was sent, try to parse as JSON
+    if (typeof body === 'string') {
+      try { body = JSON.parse(body); } catch (e) { /* keep string */ }
+    }
+    // Basic validation and logging — push to logs for now
+    console.log('perf-collect', body && body.type ? body.type : 'unknown', body || {});
+    // respond quickly
+    res.status(204).end();
+  } catch (e) {
+    res.status(500).json({ error: 'invalid payload' });
+  }
+});
+
 // Maintenant que io est initialisé, nous pouvons créer le GameManager
 const gameManager = new GameManager(roomManager, io);
 
@@ -95,6 +114,14 @@ io.on('connection', (socket) => {
   // Redemander l'état de la salle
   socket.on('demander-etat-salle', (roomCode) => {
     gameManager.sendRoomState(roomCode);
+  });
+
+  // perf ping from client -> reply quickly so client can measure RTT
+  socket.on('perf-ping', (payload) => {
+    try {
+      // echo back minimal payload
+      socket.emit('perf-pong', { id: payload.id, ts: payload.ts });
+    } catch (e) {}
   });
 
   // Demande de rejouer (relancer la même salle sans déconnecter les joueurs)
