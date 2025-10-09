@@ -46,7 +46,7 @@ class GameManager {
         }
 
         const room = this.roomManager.getRoom(roomCode);
-        
+        // Vérifier si la salle existe
         if (!room) {
             socket.emit('erreur', { message: 'Salle introuvable' });
             return;
