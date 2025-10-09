@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Sélectionner les symboles aléatoirement
                 const selectedSymbols = [];
                 const allSymbols = [...symbols];
-                // S'assurer qu'il y a assez de symboles
+                
                 for (let i = 0; i < pairs; i++) {
                     const randomIndex = Math.floor(Math.random() * allSymbols.length);
                     selectedSymbols.push(allSymbols[randomIndex]);
