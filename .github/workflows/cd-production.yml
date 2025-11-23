@@ -93,11 +93,11 @@ jobs:
           sleep 1
           echo "Recreating container memory-multiplayer..."
           sleep 2
-          echo "✅ Container started successfully."
+          echo " Container started successfully."
           
       - name: 🩺 Health Check
         run: |
           echo "Verifying application health..."
           sleep 1
           echo "HTTP 200 OK - Application is running."
-          echo "🚀 Deployment Complete!"
+          echo "Deployment Complete!"
