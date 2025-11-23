@@ -1,0 +1,103 @@
+name: "CD - Production Pipeline"
+
+# Ce workflow se lance uniquement quand on push sur la branche principale
+on:
+  push:
+    branches: [ "main"]
+  workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: "Build & Secure"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Nécessaire pour écrire dans GitHub Container Registry
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Configuration de QEMU/Buildx pour des builds optimisés
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Authentification au registre de conteneurs de GitHub 
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Extraction des métadonnées pour créer des tags intelligents (ex: main, sha-12345)
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      # Construction de l'image et Push vers le registre
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha # Utilise le cache interne de GitHub Actions (Ultra rapide !)
+          cache-to: type=gha,mode=max
+
+      # On scanne l'image qu'on vient de créer pour chercher des vulnérabilités (CVE)
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          format: 'table'
+          exit-code: '0' 
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL,HIGH'
+
+  deploy-simulation:
+    name: "Simulate Deploy to Prod"
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    # Ne déployer que si c'est la branche main
+    if: github.ref == 'refs/heads/main' 
+    steps:
+      # Simulation d'un déploiement SSH
+      - name: 🔌 Connecting to Production Server...
+        run: |
+          echo "Attempting to connect to remote server (153.x.x.x)..."
+          sleep 2 # On fait semblant d'attendre la connexion
+          echo " SSH Connection Established."
+
+      - name:  Pulling Latest Image
+        run: |
+          echo "Executing: docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+          sleep 3 # Simulation du temps de téléchargement
+          echo "Status: Downloaded newer image for ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest"
+
+      - name:  Rolling Update
+        run: |
+          echo "Executing: docker compose up -d --remove-orphans"
+          echo "Stopping container memory-multiplayer..."
+          sleep 1
+          echo "Recreating container memory-multiplayer..."
+          sleep 2
+          echo "✅ Container started successfully."
+          
+      - name: 🩺 Health Check
+        run: |
+          echo "Verifying application health..."
+          sleep 1
+          echo "HTTP 200 OK - Application is running."
+          echo "🚀 Deployment Complete!"
