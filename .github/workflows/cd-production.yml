@@ -3,7 +3,7 @@ name: "CD - Production Pipeline"
 # Ce workflow se lance uniquement quand on push sur la branche principale
 on:
   push:
-    branches: [ "main"]
+    branches: [ "main","develop"]
   workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
 
 env:
