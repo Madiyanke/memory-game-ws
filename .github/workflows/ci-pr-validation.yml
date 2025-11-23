@@ -26,8 +26,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: server/package-lock.json # Spécifique car ton package.json est dans server/
-
+          cache-dependency-path: package-lock.json
       # 3. Installation des dépendances
       - name: Install Dependencies
         working-directory: ./server
