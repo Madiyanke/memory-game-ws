@@ -75,7 +75,7 @@ jobs:
     name: "Simulate Deploy to Prod"
     needs: build-and-push
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
 
     steps:
        # On doit aussi s'assurer que le déploiement utilise le nom en minuscules
