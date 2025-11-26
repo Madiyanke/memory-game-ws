@@ -1,127 +1,108 @@
 <!DOCTYPE html>
 <html lang="fr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rejoindre une salle - Memory Multijoueur</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        .card {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95) !important;
-            border: none;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-        }
-        .btn {
-            border: none;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-        }
-    </style>
+    <title>Rejoindre une Salle - Memory Game</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
+
 <body>
-    <div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
-        <div class="card shadow-lg" style="width: 500px;">
-            <div class="card-body p-4">
-                <h2 class="text-center mb-4">Rejoindre une salle</h2>
-                <form id="join-form">
-                    <div class="mb-3">
-                        <label for="code-salle" class="form-label">Code de la salle</label>
-                        <input type="text" class="form-control form-control-lg text-uppercase text-center" 
-                               id="code-salle" required 
-                               pattern="[A-Z0-9]{6}" maxlength="6"
-                               placeholder="Ex: A1B2C3">
-                    </div>
-                    <div class="mb-3">
-                        <label for="nom-joueur" class="form-label">Votre nom</label>
-                        <input type="text" class="form-control" 
-                               id="nom-joueur" required
-                               placeholder="Ex: John">
-                    </div>
-                    <button type="submit" class="btn btn-success btn-lg w-100">Rejoindre</button>
-                </form>
-                
-                <div id="rejoindre-en-cours" class="d-none text-center mt-3">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Chargement...</span>
-                    </div>
-                    <p>Connexion à la salle...</p>
+    <div class="container">
+        <header class="text-center">
+            <h1>Rejoindre</h1>
+            <p class="subtitle">Entrez le code pour défier votre ami</p>
+        </header>
+
+        <div class="glass-panel">
+            <form id="join-room-form">
+                <div class="form-group">
+                    <label for="pseudo" class="form-label">Votre Pseudo</label>
+                    <input type="text" id="pseudo" class="form-input" placeholder="Entrez votre pseudo" required
+                        autofocus>
                 </div>
 
-                <div class="text-center mt-3">
-                    <a href="/" class="text-decoration-none">← Retour à l'accueil</a>
+                <div class="form-group">
+                    <label for="room-code" class="form-label">Code de la Salle</label>
+                    <input type="text" id="room-code" class="form-input" placeholder="Ex: A1B2C3" required
+                        style="text-transform: uppercase; letter-spacing: 2px;">
                 </div>
+
+                <button type="submit" class="btn btn-primary w-100 mb-4">
+                    <i class="fas fa-gamepad"></i> Rejoindre la Partie
+                </button>
+            </form>
+
+            <div id="error-message" class="d-none"
+                style="color: var(--danger-color); background: rgba(239, 68, 68, 0.1); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid rgba(239, 68, 68, 0.2);">
+                <i class="fas fa-exclamation-circle"></i> <span id="error-text"></span>
+            </div>
+
+            <div class="text-center">
+                <a href="index.html" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
             </div>
         </div>
     </div>
 
     <script>
-        document.getElementById('join-form').addEventListener('submit', function(e) {
+        const form = document.getElementById('join-room-form');
+        const errorBox = document.getElementById('error-message');
+        const errorText = document.getElementById('error-text');
+
+        form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            const codeSalle = document.getElementById('code-salle').value.toUpperCase();
-            const nomJoueur = document.getElementById('nom-joueur').value || `Joueur${Math.floor(Math.random() * 1000)}`;
+            const pseudo = document.getElementById('pseudo').value;
+            const roomCode = document.getElementById('room-code').value.toUpperCase();
 
-            // Afficher le chargement
-            document.getElementById('join-form').classList.add('d-none');
-            document.getElementById('rejoindre-en-cours').classList.remove('d-none');
+            if (!pseudo || !roomCode) return;
 
-            // Rejoindre la salle via l'API
-            fetch('/api/rejoindre-salle', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ roomCode: codeSalle })
-            })
-            .then(response => response.json())
-            .then(data => {
+            try {
+                const response = await fetch('/api/rejoindre-salle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ roomCode })
+                });
+                const data = await response.json();
+
                 if (data.success) {
-                    // Connexion WebSocket pour rejoindre la salle
-                    const socket = io();
-
-                    // Ensure persistent playerId
-                    let playerId = localStorage.getItem('playerId');
-                    if (!playerId) {
-                        playerId = 'p-' + Math.random().toString(36).slice(2,10);
-                        localStorage.setItem('playerId', playerId);
-                    }
-                    localStorage.setItem('playerName', nomJoueur);
-
-                    socket.on('connect', () => {
-                        socket.emit('rejoindre-salle', {
-                            roomCode: codeSalle,
-                            playerName: nomJoueur,
-                            playerId: playerId
-                        });
-
-                        // Store room info in localStorage and redirect to /jeu without query params
-                        localStorage.setItem('roomCode', codeSalle);
-                        localStorage.setItem('playerName', nomJoueur);
-                        window.location.href = '/jeu';
-                    });
-
+                    localStorage.setItem('roomCode', roomCode);
+                    localStorage.setItem('playerName', pseudo);
+                    window.location.href = 'jeu.html';
                 } else {
-                    alert(data.error || 'Erreur lors de la connexion à la salle');
-                    window.location.reload();
+                    showError(data.error || 'Impossible de rejoindre la salle');
                 }
-            })
-            .catch(error => {
+            } catch (error) {
                 console.error('Erreur:', error);
-                alert('Erreur lors de la connexion à la salle');
-                window.location.reload();
-            });
+                showError('Erreur de connexion au serveur');
+            }
         });
+
+        function showError(msg) {
+            errorText.textContent = msg;
+            errorBox.classList.remove('d-none');
+            // Shake animation
+            errorBox.style.animation = 'none';
+            errorBox.offsetHeight; /* trigger reflow */
+            errorBox.style.animation = 'shake 0.5s';
+        }
+
+        // Add shake keyframes dynamically
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes shake {
+                0% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                50% { transform: translateX(5px); }
+                75% { transform: translateX(-5px); }
+                100% { transform: translateX(0); }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
-    <script src="/socket.io/socket.io.js"></script>
 </body>
+
 </html>

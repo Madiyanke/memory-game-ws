@@ -3,7 +3,7 @@ name: "CD - Production Pipeline"
 # Ce workflow se lance uniquement quand on push sur la branche principale
 on:
   push:
-    branches: [ "main", "develop" ]
+    branches: [ "main" ]
   workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
 
 env:
@@ -84,7 +84,7 @@ jobs:
           echo "IMAGE_NAME=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
       # Simulation d'un déploiement SSH
-      - name: 🔌 Connecting to Production Server...
+      - name: Connecting to Production Server...
         run: |
           echo "Attempting to connect to remote server (153.x.x.x)..."
           sleep 2
