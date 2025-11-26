@@ -1,5 +1,6 @@
 # Utiliser une image Node.js officielle
 FROM node:18-alpine
+RUN apk add --no-cache curl
 
 # Créer le répertoire de l'application
 WORKDIR /app
