@@ -41,6 +41,10 @@ class MemoryMultiplayer {
             this.markCardsAsMatched(data.card1Index, data.card2Index, data.player);
             this.updateScores(data.scores);
 
+            // Reset local flipped state so the player can continue playing immediately
+            this.flippedCards = [];
+            this.flippedValues = {};
+
             if (data.player === this.playerRole) {
                 this.showToast('🎉 Paire trouvée ! Rejouez !', 'success');
             } else {
@@ -59,6 +63,9 @@ class MemoryMultiplayer {
 
         this.socket.on('cacher-cartes', (data) => {
             this.hideCards(data.card1Index, data.card2Index);
+            // Reset local flipped state
+            this.flippedCards = [];
+            this.flippedValues = {};
         });
 
         this.socket.on('partie-terminee', (data) => this.showGameResult(data));
