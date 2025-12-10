@@ -593,14 +593,16 @@ h1 {
 
     /* --- GAME PAGE SPECIFIC (No Scroll) --- */
     body.game-page {
-        overflow: hidden;
+        overflow-y: auto;
+        /* Allow scroll if content is too tall */
     }
 
     body.game-page .container {
-        height: 100dvh;
-        max-height: 100dvh;
+        height: auto;
+        min-height: 100dvh;
         justify-content: flex-start;
-        min-height: auto;
+        padding-bottom: 2rem;
+        overflow-y: auto;
     }
 
     body.game-page header {
@@ -743,8 +745,8 @@ h1 {
         /* Let grid control size */
         height: 100%;
         width: 100%;
-        max-height: 100%;
-        /* Prevent overflow */
+        max-height: 15vh;
+        /* Limit card height on small screens */
     }
 
     .card-face {
@@ -767,7 +769,22 @@ h1 {
 
     .modal-content .fa-3x {
         font-size: 2rem !important;
-        /* Resize large icons */
+    }
+
+    #code-attente {
+        font-size: 1.5rem !important;
+        /* Fix huge code text */
+        word-break: break-all;
+    }
+
+    .modal-content h2 {
+        font-size: 1.5rem;
+        /* Reduce HUGE modal title */
+    }
+
+    .modal-content p {
+        font-size: 1rem;
+        /* Reduce modal text */
     }
 
     /* Compact Button */
