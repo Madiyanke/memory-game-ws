@@ -19,7 +19,9 @@ class MemorySolo {
 
     setupUI() {
         document.getElementById('quitter-btn').addEventListener('click', () => {
-            if (confirm('Quitter la partie ?')) window.location.href = '/';
+            this.showConfirmModal('Voulez-vous vraiment quitter ?', () => {
+                window.location.href = '/';
+            });
         });
 
         document.getElementById('rejouer-btn').addEventListener('click', () => {
@@ -85,7 +87,8 @@ class MemorySolo {
         if (this.flippedCards.length === 2) {
             this.moves++;
             this.updateScore();
-            this.checkMatch();
+            // Wait for flip to finish before checking
+            setTimeout(() => this.checkMatch(), 600);
         }
     }
 
@@ -125,9 +128,17 @@ class MemorySolo {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
+        // Add shake animation
+        if (c1) c1.classList.add('shake');
+        if (c2) c2.classList.add('shake');
+
         setTimeout(() => {
-            c1.classList.remove('flipped');
-            c2.classList.remove('flipped');
+            if (c1) {
+                c1.classList.remove('flipped', 'shake');
+            }
+            if (c2) {
+                c2.classList.remove('flipped', 'shake');
+            }
             this.flippedCards = [];
             this.isLocked = false;
         }, 1000);
@@ -159,6 +170,37 @@ class MemorySolo {
         if (msg) msg.textContent = `Bravo ! Terminé en ${this.moves} coups.`;
         if (modal) modal.classList.add('show');
         if (window.soundManager) window.soundManager.playWin();
+    }
+
+    showConfirmModal(message, onConfirm) {
+        // Remove existing if any
+        const existing = document.querySelector('.custom-modal-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-modal-overlay active';
+        overlay.innerHTML = `
+            <div class="custom-modal">
+                <h3>${message}</h3>
+                <div class="custom-modal-actions">
+                    <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
+                    <button class="btn btn-primary" id="modal-confirm" style="background: var(--danger-color)">Quitter</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            onConfirm();
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        });
     }
 }
 

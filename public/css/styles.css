@@ -76,6 +76,7 @@ h1 {
     margin-bottom: 0.5rem;
     background: linear-gradient(to right, #fff, #cbd5e1);
     -webkit-background-clip: text;
+    background-clip: text;
     -webkit-text-fill-color: transparent;
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     letter-spacing: -0.02em;
@@ -124,6 +125,20 @@ h1 {
     gap: 0.5rem;
     position: relative;
     overflow: hidden;
+    /* Responsive Text Fixes */
+    white-space: normal;
+    text-align: center;
+    line-height: 1.2;
+    max-width: 100%;
+}
+
+@media (max-width: 480px) {
+    .btn {
+        padding: 0.75rem 1rem;
+        font-size: 0.95rem;
+        width: 100%;
+        /* Ensure full width on mobile for consistent look */
+    }
 }
 
 .btn-primary {
@@ -559,59 +574,220 @@ h1 {
     }
 }
 
+/* Responsive Mobile Optimization (No-Scroll) */
 @media (max-width: 900px) {
+
+    /* Global Mobile Fixes */
+    .container {
+        padding: 0.5rem;
+    }
+
+    h1 {
+        font-size: 1.5rem;
+        margin-bottom: 0;
+    }
+
+    .subtitle {
+        display: none;
+    }
+
+    /* --- GAME PAGE SPECIFIC (No Scroll) --- */
+    body.game-page {
+        overflow: hidden;
+    }
+
+    body.game-page .container {
+        height: 100dvh;
+        max-height: 100dvh;
+        justify-content: flex-start;
+        min-height: auto;
+    }
+
+    body.game-page header {
+        margin-bottom: 0.5rem !important;
+        flex-shrink: 0;
+    }
+
+    body.game-page .glass-panel {
+        padding: 0.5rem;
+        margin-bottom: 0 !important;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* --- HOME PAGE SPECIFIC (Allow Scroll) --- */
+    body.home-page {
+        overflow-y: auto;
+    }
+
+    body.home-page .container {
+        min-height: 100vh;
+        height: auto;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+
+    body.home-page .glass-panel {
+        margin: 1rem 0;
+        padding: 1.5rem;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    body.home-page .subtitle {
+        display: block;
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+
+
+
+
+    /* Compact Info Bar (formerly Sidebar) */
     .game-container {
-        grid-template-columns: 1fr;
+        display: flex;
+        flex-direction: column;
+        grid-template-columns: none;
+        gap: 0.5rem;
+        flex: 1;
+        width: 100%;
+        margin-top: 0.5rem;
+        overflow: hidden;
+        /* Contain content */
     }
 
     .sidebar {
         flex-direction: row;
-        justify-content: center;
-        flex-wrap: wrap;
+        width: 100%;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        /* Keep size constant */
+        overflow-x: auto;
+        /* Allow horizontal scroll if needed */
     }
 
+
+
+    /* Transform Tour Indicator */
+    #tour-indicator {
+        padding: 0.5rem;
+        margin-bottom: 0.5rem !important;
+        font-size: 1rem;
+    }
+
+    #tour-text {
+        font-size: 1rem !important;
+    }
+
+    /* Compact Player Cards */
     .player-card {
+        padding: 0.5rem;
+        min-width: auto;
         flex: 1;
-        min-width: 200px;
+        border-radius: 12px;
+    }
+
+    .player-avatar {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+
+    .player-name {
+        font-size: 0.9rem;
+    }
+
+    .player-score {
+        font-size: 0.8rem;
+    }
+
+    /* Compact Timer */
+    .timer-container {
+        width: 40px;
+        height: 40px;
+    }
+
+    .timer-text {
+        font-size: 0.8rem;
+    }
+
+    .sidebar .glass-panel p {
+        display: none;
+        /* Hide "Temps restant" label */
+    }
+
+    /* Game Board - maximize space */
+    .game-board {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        /* Fixed 4x4 grid */
+        gap: 2vmin;
+        /* Dynamic gap */
+        width: 100%;
+        height: 100%;
+        max-height: 100%;
+        /* Ensure it fits */
+        align-content: center;
+        justify-content: center;
+        padding: 0.5rem;
+    }
+
+    .card {
+        aspect-ratio: auto;
+        /* Let grid control size */
+        height: 100%;
+        width: 100%;
+        max-height: 100%;
+        /* Prevent overflow */
+    }
+
+    .card-face {
+        border-radius: 8px;
+        /* Slightly less rounded */
+        font-size: 8vmin;
+        /* Dynamic font size for icons */
+    }
+
+    /* Modal Fixes for Mobile */
+    .modal-content {
+        padding: 1.5rem;
+        width: 85%;
+    }
+
+    .modal-content h2 {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+    }
+
+    .modal-content .fa-3x {
+        font-size: 2rem !important;
+        /* Resize large icons */
+    }
+
+    /* Compact Button */
+    #quitter-btn {
+        padding: 0.5rem;
+        font-size: 0.9rem;
     }
 }
 
-@media (max-width: 600px) {
-    .game-board {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-    }
-
+/* Very small screens adjustment */
+@media (max-width: 380px) {
     h1 {
-        font-size: 2.5rem;
+        font-size: 1.2rem;
     }
-}
 
-@media (max-width: 400px) {
-    .game-board {
-        grid-template-columns: repeat(2, 1fr);
+    .player-name {
+        display: none;
     }
-}
 
-/* Utilities */
-.text-center {
-    text-align: center;
-}
-
-.mb-4 {
-    margin-bottom: 1.5rem;
-}
-
-.mt-4 {
-    margin-top: 1.5rem;
-}
-
-.w-100 {
-    width: 100%;
-}
-
-.d-none {
-    display: none !important;
+    /* Show only avatar/score */
 }
 
 /* Toast */
@@ -730,4 +906,155 @@ h1 {
 .card-back {
     backdrop-filter: none !important;
     -webkit-backdrop-filter: none !important;
+}
+
+/* New UX Animations */
+
+/* 1. Shake Animation for Mismatch */
+@keyframes shake {
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: translateX(5px);
+    }
+}
+
+@keyframes shake-flipped {
+
+    0%,
+    100% {
+        transform: rotateY(180deg) translateX(0);
+    }
+
+    10%,
+    30%,
+    50%,
+    70%,
+    90% {
+        transform: rotateY(180deg) translateX(-5px);
+    }
+
+    20%,
+    40%,
+    60%,
+    80% {
+        transform: rotateY(180deg) translateX(5px);
+    }
+}
+
+.shake {
+    animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
+    border-color: var(--danger-color) !important;
+}
+
+.card.flipped.shake {
+    animation-name: shake-flipped;
+}
+
+/* 2. Winner / Match Glow */
+@keyframes glow-pulse {
+    0% {
+        box-shadow: 0 0 5px var(--success-color);
+    }
+
+    50% {
+        box-shadow: 0 0 20px var(--success-color), 0 0 10px var(--success-color);
+    }
+
+    100% {
+        box-shadow: 0 0 5px var(--success-color);
+    }
+}
+
+.card.matched {
+    border-color: var(--success-color);
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+}
+
+/* 3. Active Turn Indicator */
+@keyframes active-pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4);
+    }
+
+    70% {
+        box-shadow: 0 0 0 10px rgba(79, 70, 229, 0);
+    }
+
+    100% {
+        box-shadow: 0 0 0 0 rgba(79, 70, 229, 0);
+    }
+}
+
+.player-card.active-turn {
+    border: 2px solid var(--primary-color);
+    background: rgba(79, 70, 229, 0.1);
+    animation: active-pulse 2s infinite;
+}
+
+/* 4. Custom Modal Styling (replacement for confirm) */
+.custom-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.custom-modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.custom-modal {
+    background: var(--background-gradient);
+    border: 1px solid var(--glass-border);
+    padding: 2rem;
+    border-radius: 20px;
+    text-align: center;
+    max-width: 400px;
+    width: 90%;
+    transform: scale(0.9);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.custom-modal-overlay.active .custom-modal {
+    transform: scale(1);
+}
+
+.custom-modal h3 {
+    margin-bottom: 1rem;
+    color: white;
+}
+
+.custom-modal-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    margin-top: 1.5rem;
 }
