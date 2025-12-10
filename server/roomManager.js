@@ -19,14 +19,14 @@ class RoomManager {
             createdAt: Date.now(),
             lastActivity: Date.now()
         };
-        
+
         this.rooms.set(roomCode, room);
         console.log(`🎮 Salle créée: ${roomCode}`);
-        
+
         // Planifier une suppression absolue après 30 minutes (durée de validité max)
         const THIRTY_MINUTES = 30 * 60 * 1000;
         this.scheduleRoomDeletion(roomCode, THIRTY_MINUTES, true);
-        
+
         return roomCode;
     }
 
@@ -100,7 +100,7 @@ class RoomManager {
         if (room.players.length < 2) {
             // Déterminer le rôle disponible
             const hasPlayer1 = room.players.some(p => p.role === 'player1');
-            
+
             if (!hasPlayer1) {
                 player.role = 'player1';
                 player.name = player.name || 'Joueur 1';
@@ -123,124 +123,108 @@ class RoomManager {
 
         // Marquer le joueur comme déconnecté mais conserver son slot pour reconnexion
         const player = room.players.find(p => p.socketId === socketId);
-        if (player) {
-            player.socketId = null;
-            player.disconnectedAt = Date.now();
-            console.log(`👋 Joueur ${player.name} marqué comme déconnecté de la salle ${roomCode}`);
-        }
-
-        // Si aucun joueur connecté, programmer suppression après délai court (1 min)
-        const anyConnected = room.players.some(p => p.socketId);
-        if (!anyConnected) {
-            this.scheduleRoomDeletion(roomCode, 60000); // 1 minute pour se reconnecter
-        }
+        if (p) return { room, player: p, roomCode };
     }
-
-    getPlayerByPlayerId(playerId) {
-        for (const [roomCode, room] of this.rooms.entries()) {
-            const p = room.players.find(x => x.playerId === playerId);
-            if (p) return { room, player: p, roomCode };
-        }
         return null;
     }
 
-    scheduleRoomDeletion(roomCode, delayMs = 60000, force = false) {
-        // Ne pas reprogrammer si déjà programmé (sauf si force)
-        if (this.reapTimers.has(roomCode) && !force) return;
-        
-        // Si force est true, on écrase le timer existant
-        if (this.reapTimers.has(roomCode)) {
-            clearTimeout(this.reapTimers.get(roomCode));
+scheduleRoomDeletion(roomCode, delayMs = 60000, force = false) {
+    // Ne pas reprogrammer si déjà programmé (sauf si force)
+    if (this.reapTimers.has(roomCode) && !force) return;
+
+    // Si force est true, on écrase le timer existant
+    if (this.reapTimers.has(roomCode)) {
+        clearTimeout(this.reapTimers.get(roomCode));
+    }
+
+    console.log(`⏳ Programmation suppression de la salle ${roomCode} dans ${delayMs / 1000}s` + (force ? ' (FORCE)' : ''));
+
+    const t = setTimeout(() => {
+        const room = this.rooms.get(roomCode);
+        if (!room) {
+            this.reapTimers.delete(roomCode);
+            return;
         }
 
-        console.log(`⏳ Programmation suppression de la salle ${roomCode} dans ${delayMs/1000}s` + (force ? ' (FORCE)' : ''));
-        
-        const t = setTimeout(() => {
-            const room = this.rooms.get(roomCode);
-            if (!room) {
-                this.reapTimers.delete(roomCode);
-                return;
-            }
-
-            if (force) {
+        if (force) {
+            this.rooms.delete(roomCode);
+            console.log(`🗑️ Salle ${roomCode} supprimée (expiration de validité)`);
+        } else {
+            // Vérifier à nouveau si vide
+            const anyConnected = room.players.some(p => p.socketId);
+            if (!anyConnected) {
                 this.rooms.delete(roomCode);
-                console.log(`🗑️ Salle ${roomCode} supprimée (expiration de validité)`);
+                console.log(`🗑️ Salle ${roomCode} supprimée (inactivité)`);
             } else {
-                // Vérifier à nouveau si vide
-                const anyConnected = room.players.some(p => p.socketId);
-                if (!anyConnected) {
-                    this.rooms.delete(roomCode);
-                    console.log(`🗑️ Salle ${roomCode} supprimée (inactivité)`);
-                } else {
-                    console.log(`ℹ️ Salle ${roomCode} réoccupée, annulation suppression`);
-                }
-            }
-            this.reapTimers.delete(roomCode);
-        }, delayMs);
-
-        this.reapTimers.set(roomCode, t);
-    }
-
-    cancelRoomDeletion(roomCode) {
-        if (this.reapTimers.has(roomCode)) {
-            // On n'annule pas les suppressions forcées (expiration max)
-            // Mais ici on simplifie : on annule tout, le createRoom a posé un timer force qui sera écrasé si on ne fait pas attention.
-            // Pour bien faire, on devrait distinguer timer d'inactivité et timer de fin de vie.
-            // Pour l'instant, on suppose que l'activité repousse la suppression d'inactivité.
-            
-            // Note: Le timer "FORCE" du createRoom est long (30min), on peut le laisser courir ou le reset.
-            // Ici on va simplement clear le timer courant.
-            clearTimeout(this.reapTimers.get(roomCode));
-            this.reapTimers.delete(roomCode);
-            console.log(`✋ Annulation suppression programmée de la salle ${roomCode}`);
-        }
-    }
-
-    getPlayerRoom(socketId) {
-        for (const [roomCode, room] of this.rooms.entries()) {
-            const player = room.players.find(p => p.socketId === socketId);
-            if (player) {
-                return { room, player, roomCode };
+                console.log(`ℹ️ Salle ${roomCode} réoccupée, annulation suppression`);
             }
         }
-        return null;
+        this.reapTimers.delete(roomCode);
+    }, delayMs);
+
+    this.reapTimers.set(roomCode, t);
+}
+
+cancelRoomDeletion(roomCode) {
+    if (this.reapTimers.has(roomCode)) {
+        // On n'annule pas les suppressions forcées (expiration max)
+        // Mais ici on simplifie : on annule tout, le createRoom a posé un timer force qui sera écrasé si on ne fait pas attention.
+        // Pour bien faire, on devrait distinguer timer d'inactivité et timer de fin de vie.
+        // Pour l'instant, on suppose que l'activité repousse la suppression d'inactivité.
+
+        // Note: Le timer "FORCE" du createRoom est long (30min), on peut le laisser courir ou le reset.
+        // Ici on va simplement clear le timer courant.
+        clearTimeout(this.reapTimers.get(roomCode));
+        this.reapTimers.delete(roomCode);
+        console.log(`✋ Annulation suppression programmée de la salle ${roomCode}`);
     }
+}
 
-    switchPlayer(roomCode) {
-        const room = this.getRoom(roomCode);
-        if (!room) return;
-
-        room.currentPlayer = room.currentPlayer === 'player1' ? 'player2' : 'player1';
-        room.flippedCards = []; // Réinitialiser les cartes retournées
-        
-        return room.currentPlayer;
-    }
-
-    checkCardMatch(roomCode, card1Index, card2Index) {
-        const room = this.getRoom(roomCode);
-        if (!room) return false;
-
-        return room.cards[card1Index] === room.cards[card2Index];
-    }
-
-    markCardsAsMatched(roomCode, card1Index, card2Index, playerRole) {
-        const room = this.getRoom(roomCode);
-        if (!room) return;
-
-        // Marquer les cartes comme trouvées
-        if (!room.cardsState) room.cardsState = {};
-        room.cardsState[card1Index] = { matched: true, player: playerRole };
-        room.cardsState[card2Index] = { matched: true, player: playerRole };
-
-        // Mettre à jour le score
-        room.scores[playerRole]++;
-        room.matchedPairs++;
-
-        // Vérifier si la partie est terminée
-        if (room.matchedPairs >= room.totalPairs) {
-            room.gameState = 'finished';
+getPlayerRoom(socketId) {
+    for (const [roomCode, room] of this.rooms.entries()) {
+        const player = room.players.find(p => p.socketId === socketId);
+        if (player) {
+            return { room, player, roomCode };
         }
     }
+    return null;
+}
+
+switchPlayer(roomCode) {
+    const room = this.getRoom(roomCode);
+    if (!room) return;
+
+    room.currentPlayer = room.currentPlayer === 'player1' ? 'player2' : 'player1';
+    room.flippedCards = []; // Réinitialiser les cartes retournées
+
+    return room.currentPlayer;
+}
+
+checkCardMatch(roomCode, card1Index, card2Index) {
+    const room = this.getRoom(roomCode);
+    if (!room) return false;
+
+    return room.cards[card1Index] === room.cards[card2Index];
+}
+
+markCardsAsMatched(roomCode, card1Index, card2Index, playerRole) {
+    const room = this.getRoom(roomCode);
+    if (!room) return;
+
+    // Marquer les cartes comme trouvées
+    if (!room.cardsState) room.cardsState = {};
+    room.cardsState[card1Index] = { matched: true, player: playerRole };
+    room.cardsState[card2Index] = { matched: true, player: playerRole };
+
+    // Mettre à jour le score
+    room.scores[playerRole]++;
+    room.matchedPairs++;
+
+    // Vérifier si la partie est terminée
+    if (room.matchedPairs >= room.totalPairs) {
+        room.gameState = 'finished';
+    }
+}
 }
 
 module.exports = RoomManager;
