@@ -19,14 +19,14 @@ class RoomManager {
             createdAt: Date.now(),
             lastActivity: Date.now()
         };
-        
+
         this.rooms.set(roomCode, room);
         console.log(`🎮 Salle créée: ${roomCode}`);
-        
+
         // Planifier une suppression absolue après 30 minutes (durée de validité max)
         const THIRTY_MINUTES = 30 * 60 * 1000;
         this.scheduleRoomDeletion(roomCode, THIRTY_MINUTES, true);
-        
+
         return roomCode;
     }
 
@@ -100,7 +100,7 @@ class RoomManager {
         if (room.players.length < 2) {
             // Déterminer le rôle disponible
             const hasPlayer1 = room.players.some(p => p.role === 'player1');
-            
+
             if (!hasPlayer1) {
                 player.role = 'player1';
                 player.name = player.name || 'Joueur 1';
@@ -147,14 +147,14 @@ class RoomManager {
     scheduleRoomDeletion(roomCode, delayMs = 60000, force = false) {
         // Ne pas reprogrammer si déjà programmé (sauf si force)
         if (this.reapTimers.has(roomCode) && !force) return;
-        
+
         // Si force est true, on écrase le timer existant
         if (this.reapTimers.has(roomCode)) {
             clearTimeout(this.reapTimers.get(roomCode));
         }
 
-        console.log(`⏳ Programmation suppression de la salle ${roomCode} dans ${delayMs/1000}s` + (force ? ' (FORCE)' : ''));
-        
+        console.log(`⏳ Programmation suppression de la salle ${roomCode} dans ${delayMs / 1000}s` + (force ? ' (FORCE)' : ''));
+
         const t = setTimeout(() => {
             const room = this.rooms.get(roomCode);
             if (!room) {
@@ -183,13 +183,6 @@ class RoomManager {
 
     cancelRoomDeletion(roomCode) {
         if (this.reapTimers.has(roomCode)) {
-            // On n'annule pas les suppressions forcées (expiration max)
-            // Mais ici on simplifie : on annule tout, le createRoom a posé un timer force qui sera écrasé si on ne fait pas attention.
-            // Pour bien faire, on devrait distinguer timer d'inactivité et timer de fin de vie.
-            // Pour l'instant, on suppose que l'activité repousse la suppression d'inactivité.
-            
-            // Note: Le timer "FORCE" du createRoom est long (30min), on peut le laisser courir ou le reset.
-            // Ici on va simplement clear le timer courant.
             clearTimeout(this.reapTimers.get(roomCode));
             this.reapTimers.delete(roomCode);
             console.log(`✋ Annulation suppression programmée de la salle ${roomCode}`);
@@ -212,7 +205,7 @@ class RoomManager {
 
         room.currentPlayer = room.currentPlayer === 'player1' ? 'player2' : 'player1';
         room.flippedCards = []; // Réinitialiser les cartes retournées
-        
+
         return room.currentPlayer;
     }
 

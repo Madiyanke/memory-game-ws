@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Memory Game</string>
+    <string name="title_activity_main">Memory Game</string>
+    <string name="package_name">com.hamidou.memorygame</string>
+    <string name="custom_url_scheme">com.hamidou.memorygame</string>
+</resources>
