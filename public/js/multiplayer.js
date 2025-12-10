@@ -62,10 +62,12 @@ class MemoryMultiplayer {
         });
 
         this.socket.on('cacher-cartes', (data) => {
-            this.hideCards(data.card1Index, data.card2Index);
-            // Reset local flipped state
-            this.flippedCards = [];
-            this.flippedValues = {};
+            setTimeout(() => {
+                this.hideCards(data.card1Index, data.card2Index);
+                // Reset local flipped state
+                this.flippedCards = [];
+                this.flippedValues = {};
+            }, 600);
         });
 
         this.socket.on('partie-terminee', (data) => this.showGameResult(data));
@@ -87,12 +89,12 @@ class MemoryMultiplayer {
     setupUIEvents() {
         const quitter = document.getElementById('quitter-btn');
         if (quitter) quitter.addEventListener('click', () => {
-            if (confirm('Voulez-vous vraiment quitter la partie ?')) {
+            this.showConfirmModal('Voulez-vous vraiment quitter la partie ?', () => {
                 if (this.roomCode) this.socket.emit('quitter-salle', this.roomCode);
                 localStorage.removeItem('roomCode');
                 localStorage.removeItem('playerName');
                 window.location.href = '/';
-            }
+            });
         });
 
         const copier = document.getElementById('copier-code-btn');
@@ -200,8 +202,8 @@ class MemoryMultiplayer {
         const p1Card = document.getElementById('player1-card');
         const p2Card = document.getElementById('player2-card');
 
-        if (p1Card) p1Card.classList.remove('active');
-        if (p2Card) p2Card.classList.remove('active');
+        if (p1Card) p1Card.classList.remove('active', 'active-turn');
+        if (p2Card) p2Card.classList.remove('active', 'active-turn');
 
         if (this.gameState === 'waiting') {
             tourText.textContent = 'En attente d\'un adversaire...';
@@ -209,13 +211,13 @@ class MemoryMultiplayer {
         } else if (this.currentPlayer === this.playerRole) {
             tourText.textContent = '🎮 C\'est votre tour !';
             tourText.style.color = 'var(--success-color)';
-            if (this.playerRole === 'player1' && p1Card) p1Card.classList.add('active');
-            if (this.playerRole === 'player2' && p2Card) p2Card.classList.add('active');
+            if (this.playerRole === 'player1' && p1Card) p1Card.classList.add('active-turn');
+            if (this.playerRole === 'player2' && p2Card) p2Card.classList.add('active-turn');
         } else {
             tourText.textContent = '⏳ Tour de l\'adversaire...';
             tourText.style.color = 'var(--text-muted)';
-            if (this.currentPlayer === 'player1' && p1Card) p1Card.classList.add('active');
-            if (this.currentPlayer === 'player2' && p2Card) p2Card.classList.add('active');
+            if (this.currentPlayer === 'player1' && p1Card) p1Card.classList.add('active-turn');
+            if (this.currentPlayer === 'player2' && p2Card) p2Card.classList.add('active-turn');
         }
     }
 
@@ -312,8 +314,13 @@ class MemoryMultiplayer {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
-        if (c1) c1.classList.remove('flipped');
-        if (c2) c2.classList.remove('flipped');
+        if (c1) c1.classList.add('shake');
+        if (c2) c2.classList.add('shake');
+
+        setTimeout(() => {
+            if (c1) c1.classList.remove('flipped', 'shake');
+            if (c2) c2.classList.remove('flipped', 'shake');
+        }, 500);
     }
 
     switchTurn(nouveauJoueur) {
@@ -411,6 +418,36 @@ class MemoryMultiplayer {
         if (!this.roomCode) return;
         navigator.clipboard.writeText(this.roomCode);
         this.showToast('Code copié !', 'success');
+    }
+    showConfirmModal(message, onConfirm) {
+        // Remove existing if any
+        const existing = document.querySelector('.custom-modal-overlay');
+        if (existing) existing.remove();
+
+        const overlay = document.createElement('div');
+        overlay.className = 'custom-modal-overlay active';
+        overlay.innerHTML = `
+            <div class="custom-modal">
+                <h3>${message}</h3>
+                <div class="custom-modal-actions">
+                    <button class="btn btn-secondary" id="modal-cancel">Annuler</button>
+                    <button class="btn btn-primary" id="modal-confirm" style="background: var(--danger-color)">Quitter</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        document.getElementById('modal-cancel').addEventListener('click', () => {
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        });
+
+        document.getElementById('modal-confirm').addEventListener('click', () => {
+            onConfirm();
+            overlay.classList.remove('active');
+            setTimeout(() => overlay.remove(), 300);
+        });
     }
 }
 
