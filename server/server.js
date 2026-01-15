@@ -46,7 +46,7 @@ app.post('/api/creer-salle', (req, res) => {
 app.post('/api/rejoindre-salle', (req, res) => {
   const { roomCode } = req.body;
   const room = roomManager.getRoom(roomCode);
-  
+
   if (!room) {
     return res.json({ success: false, error: 'Salle introuvable' });
   }
@@ -55,7 +55,7 @@ app.post('/api/rejoindre-salle', (req, res) => {
   if (connectedCount >= 2) {
     return res.json({ success: false, error: 'Salle pleine' });
   }
-  
+
   res.json({ success: true, room });
 });
 
@@ -104,7 +104,7 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => {
   console.log(`🚀 Serveur démarré sur le port ${PORT}`);
   console.log(`📱 Accédez au jeu: http://localhost:${PORT}`);

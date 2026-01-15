@@ -5,6 +5,7 @@ class GameManager {
         this.roomManager = roomManager;
         this.io = io;
         this.roomTimers = new Map(); // per-room turn timers
+        this.matchTimers = new Map(); // per-room match resolution timers
     }
 
     joinRoom(socket, roomCode, playerName, playerId = null) {
@@ -67,6 +68,7 @@ class GameManager {
         if (!room) return;
 
         room.gameState = 'playing';
+        room.isResolving = false; // Reset resolving state
         // Player 1 starts by default unless specified otherwise
         room.currentPlayer = 'player1';
 
@@ -83,6 +85,7 @@ class GameManager {
 
         // Validations strictes
         if (room.gameState !== 'playing') return;
+        if (room.isResolving) return; // Prevent actions during resolution
         if (room.currentPlayer !== player.role) return;
         if (room.flippedCards.length >= 2) return; // Déjà 2 cartes retournées
         if (room.flippedCards.includes(cardIndex)) return; // Carte déjà retournée
@@ -108,17 +111,22 @@ class GameManager {
         const room = this.roomManager.getRoom(roomCode);
         if (!room || room.flippedCards.length !== 2) return;
 
+        room.isResolving = true; // Block inputs
+
         const [card1Index, card2Index] = room.flippedCards;
         const isMatch = this.roomManager.checkCardMatch(roomCode, card1Index, card2Index);
 
         // Petit délai pour laisser voir la 2ème carte
-        setTimeout(() => {
+        const t = setTimeout(() => {
+            this.matchTimers.delete(roomCode); // Timer finished
             if (isMatch) {
                 this.handleMatch(room, roomCode, card1Index, card2Index);
             } else {
                 this.handleMismatch(room, roomCode, card1Index, card2Index);
             }
         }, 1000);
+
+        this.matchTimers.set(roomCode, t);
     }
 
     handleMatch(room, roomCode, card1Index, card2Index) {
@@ -133,6 +141,7 @@ class GameManager {
         });
 
         room.flippedCards = [];
+        room.isResolving = false; // Unblock inputs
 
         if (room.gameState === 'finished') {
             this.endGame(roomCode);
@@ -150,6 +159,7 @@ class GameManager {
         });
 
         room.flippedCards = [];
+        room.isResolving = false; // Unblock inputs
 
         // Changer de joueur
         const newPlayer = this.roomManager.switchPlayer(roomCode);
@@ -182,15 +192,34 @@ class GameManager {
     }
 
     clearTurnTimer(roomCode) {
+        // Clear turn timer
         if (this.roomTimers.has(roomCode)) {
             clearTimeout(this.roomTimers.get(roomCode));
             this.roomTimers.delete(roomCode);
         }
     }
 
+    clearMatchTimer(roomCode) {
+        // Clear match resolution timer
+        if (this.matchTimers.has(roomCode)) { // Use has() to check
+            clearTimeout(this.matchTimers.get(roomCode));
+            this.matchTimers.delete(roomCode);
+        }
+    }
+
     onTurnTimeout(roomCode) {
         const room = this.roomManager.getRoom(roomCode);
         if (!room) return;
+
+        // Safety: If strictly resolving (waiting for match check), do not force switch?
+        // Actually, if resolving, the timer should have been paused or is irrelevant because match check is fast (1s).
+        // TURN_DURATION is 30s.
+        // If we are in "resolving", we should probably ignore timeout or let it race?
+        // Let's assume resolution (1s) is faster than turn (30s).
+        // But if resolution hangs?
+        if (room.isResolving) {
+            room.isResolving = false;
+        }
 
         // Si des cartes étaient retournées, on les cache
         if (room.flippedCards.length > 0) {
@@ -214,6 +243,7 @@ class GameManager {
         if (!room) return;
 
         this.clearTurnTimer(roomCode);
+        this.clearMatchTimer(roomCode); // Ensure no pending resolution
 
         let gagnant = 'égalité';
         if (room.scores.player1 > room.scores.player2) gagnant = 'player1';
@@ -231,12 +261,16 @@ class GameManager {
         const room = this.roomManager.getRoom(roomCode);
         if (!room) return;
 
+        this.clearTurnTimer(roomCode);
+        this.clearMatchTimer(roomCode);
+
         // Reset state
         room.cards = this.roomManager.generateCards();
         room.cardsState = {};
         room.flippedCards = [];
         room.scores = { player1: 0, player2: 0 };
         room.matchedPairs = 0;
+        room.isResolving = false; // Reset
 
         // Check connections
         const connectedCount = room.players.filter(p => p.socketId).length;
@@ -288,7 +322,10 @@ class GameManager {
         const connectedCount = room.players.filter(p => p.socketId).length;
         if (connectedCount < 2) {
             this.clearTurnTimer(roomCode);
+            this.clearMatchTimer(roomCode); // STOP ANY RESOLUTION
             room.gameState = 'waiting'; // Retour en attente
+            room.isResolving = false;
+            room.flippedCards = []; // Clear flipped cards on disconnect to prevent stuck state
         }
 
         this.sendRoomState(roomCode);
