@@ -1,3 +1,34 @@
+// Haptic Feedback Utility
+class HapticFeedback {
+    static isSupported() {
+        return 'vibrate' in navigator;
+    }
+
+    static light() {
+        if (this.isSupported()) navigator.vibrate(10);
+    }
+
+    static medium() {
+        if (this.isSupported()) navigator.vibrate(20);
+    }
+
+    static heavy() {
+        if (this.isSupported()) navigator.vibrate(30);
+    }
+
+    static success() {
+        if (this.isSupported()) navigator.vibrate([10, 50, 10]);
+    }
+
+    static error() {
+        if (this.isSupported()) navigator.vibrate([20, 100, 20]);
+    }
+
+    static victory() {
+        if (this.isSupported()) navigator.vibrate([30, 100, 30, 100, 50]);
+    }
+}
+
 class MemoryMultiplayer {
     constructor() {
         this.socket = io();
@@ -10,6 +41,8 @@ class MemoryMultiplayer {
         this.flippedValues = {};
         this.cardsState = {};
         this.timerInterval = null;
+        this.combo = 0; // Track consecutive matches
+        this.totalPairs = 8; // Will be updated based on cardCount
 
         this.init();
     }
@@ -17,7 +50,108 @@ class MemoryMultiplayer {
     init() {
         this.setupSocketEvents();
         this.setupUIEvents();
+        this.setupKeyboardNavigation();
         this.loadRoomFromStorage();
+    }
+
+    // Screen reader announcements
+    announce(message) {
+        const announcer = document.getElementById('sr-announcements');
+        if (announcer) {
+            announcer.textContent = message;
+            setTimeout(() => {
+                announcer.textContent = '';
+            }, 1000);
+        }
+    }
+
+    setupKeyboardNavigation() {
+        document.addEventListener('keydown', (e) => {
+            if (this.gameState !== 'playing' || this.currentPlayer !== this.playerRole) return;
+
+            const cards = Array.from(document.querySelectorAll('.card:not(.matched)'));
+            const focusedCard = document.activeElement;
+            const currentIndex = cards.indexOf(focusedCard);
+
+            let newIndex = -1;
+
+            switch (e.key) {
+                case 'ArrowRight':
+                    e.preventDefault();
+                    newIndex = Math.min(currentIndex + 1, cards.length - 1);
+                    break;
+                case 'ArrowLeft':
+                    e.preventDefault();
+                    newIndex = Math.max(currentIndex - 1, 0);
+                    break;
+                case 'ArrowDown':
+                    e.preventDefault();
+                    newIndex = Math.min(currentIndex + 4, cards.length - 1);
+                    break;
+                case 'ArrowUp':
+                    e.preventDefault();
+                    newIndex = Math.max(currentIndex - 4, 0);
+                    break;
+                case 'Enter':
+                case ' ':
+                    e.preventDefault();
+                    if (focusedCard && focusedCard.classList.contains('card')) {
+                        const index = parseInt(focusedCard.dataset.index);
+                        this.handleCardClick(index);
+                    }
+                    break;
+            }
+
+            if (newIndex >= 0 && cards[newIndex]) {
+                cards[newIndex].focus();
+            }
+        });
+    }
+
+    updateProgress() {
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+
+        const matchedPairs = Object.values(this.cardsState).filter(state => state === 'matched').length / 2;
+        const percentage = Math.round((matchedPairs / this.totalPairs) * 100);
+
+        if (progressFill) {
+            progressFill.style.width = `${percentage}%`;
+        }
+
+        if (progressText) {
+            progressText.textContent = `${Math.floor(matchedPairs)}/${this.totalPairs} paires trouvées`;
+            progressText.style.transform = 'scale(1.1)';
+            setTimeout(() => {
+                progressText.style.transform = 'scale(1)';
+            }, 200);
+        }
+
+        // Update ARIA
+        const progressBar = document.querySelector('.progress-bar[role="progressbar"]');
+        if (progressBar) {
+            progressBar.setAttribute('aria-valuenow', percentage);
+        }
+    }
+
+    animateNumber(element, from, to, duration = 400) {
+        const start = Date.now();
+        const range = to - from;
+
+        const timer = setInterval(() => {
+            const elapsed = Date.now() - start;
+            const progress = Math.min(elapsed / duration, 1);
+
+            const easeOut = 1 - Math.pow(1 - progress, 3);
+            const current = Math.round(from + range * easeOut);
+
+            element.textContent = current;
+
+            if (progress >= 1) {
+                clearInterval(timer);
+                element.textContent = to;
+            }
+        }, 16);
     }
 
     setupSocketEvents() {
@@ -193,8 +327,11 @@ class MemoryMultiplayer {
 
     updateScores(scores) {
         if (!scores) return;
-        document.getElementById('score-joueur1').textContent = scores.player1;
-        document.getElementById('score-joueur2').textContent = scores.player2;
+        const score1El = document.getElementById('score-joueur1');
+        const score2El = document.getElementById('score-joueur2');
+
+        if (score1El) this.animateNumber(score1El, parseInt(score1El.textContent), scores.player1);
+        if (score2El) this.animateNumber(score2El, parseInt(score2El.textContent), scores.player2);
         document.getElementById('final-score1').textContent = scores.player1;
         document.getElementById('final-score2').textContent = scores.player2;
     }
@@ -312,21 +449,70 @@ class MemoryMultiplayer {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
-        if (c1) c1.classList.add('matched');
-        if (c2) c2.classList.add('matched');
+        if (c1) {
+            c1.classList.add('matched');
+            c1.setAttribute('aria-label', `Carte ${idx1 + 1}, paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'}`);
+            c1.setAttribute('aria-disabled', 'true');
+        }
+        if (c2) {
+            c2.classList.add('matched');
+            c2.setAttribute('aria-label', `Carte ${idx2 + 1}, paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'}`);
+            c2.setAttribute('aria-disabled', 'true');
+        }
+
+        // UX Feedback
+        if (player === this.playerRole) {
+            HapticFeedback.success();
+            this.combo++;
+
+            // Combo Toasts
+            if (window.toast) {
+                if (this.combo === 3) window.toast.combo('🔥 En feu ! 3 combos !');
+                else if (this.combo === 5) window.toast.combo('🚀 Incroyable ! 5 combos !');
+                else if (this.combo >= 2) window.toast.success(`Combo x${this.combo} !`, 1500);
+            }
+        } else {
+            // Reset local combo if opponent scores (optional game design choice, helps track "your" streak)
+            this.combo = 0;
+        }
+
+        // Global Announcement
+        this.announce(`Paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'} !`);
+
+        this.updateProgress();
     }
 
     hideCards(idx1, idx2) {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
-        if (c1) c1.classList.add('shake');
-        if (c2) c2.classList.add('shake');
+        // Haptic Error only if it was current player's turn (approximate check or always feedback)
+        // Better: always feedback for game state change
+        // But vibration only if meaningful? Let's do it if we are watching.
+        if (this.currentPlayer === this.playerRole) {
+            HapticFeedback.error();
+            this.combo = 0; // Reset combo
+        }
+
+        if (c1) c1.classList.add('shake', 'mismatch');
+        if (c2) c2.classList.add('shake', 'mismatch');
+
+        this.announce('Pas de correspondance, cartes retournées');
 
         setTimeout(() => {
-            if (c1) c1.classList.remove('flipped', 'shake');
-            if (c2) c2.classList.remove('flipped', 'shake');
-        }, 500);
+            if (c1) c1.classList.remove('flipped', 'shake', 'mismatch');
+            if (c2) c2.classList.remove('flipped', 'shake', 'mismatch');
+
+            // Reset ARIA
+            if (c1) {
+                c1.setAttribute('aria-label', `Carte ${idx1 + 1} sur ${this.cardCount}, face cachée`);
+                c1.setAttribute('aria-pressed', 'false');
+            }
+            if (c2) {
+                c2.setAttribute('aria-label', `Carte ${idx2 + 1} sur ${this.cardCount}, face cachée`);
+                c2.setAttribute('aria-pressed', 'false');
+            }
+        }, 800);
     }
 
     switchTurn(nouveauJoueur) {
@@ -373,51 +559,46 @@ class MemoryMultiplayer {
 
     showGameResult(data) {
         const modal = document.getElementById('finPartieModal');
-        const msgEl = document.getElementById('message-resultat');
+        const messageEl = document.getElementById('message-resultat');
 
-        let msg = '';
-        if (data.gagnant === 'égalité') {
-            msg = '🤝 Match Nul !';
-        } else if (data.gagnant === this.playerRole) {
-            msg = '🏆 Vous avez GAGNÉ !';
-            if (window.soundManager) window.soundManager.playWin();
+        let message = '';
+        if (data.gagnant === 'égalité') { // Changed from 'winner' to 'gagnant' to match original code
+            message = 'Match nul ! 🤝';
+        } else if (data.gagnant === this.playerRole) { // Changed from 'winner' to 'gagnant'
+            message = 'Félicitations ! Vous avez gagné ! 🎉';
+            HapticFeedback.victory();
+
+            // Launch Confetti
+            if (window.confetti) {
+                setTimeout(() => {
+                    window.confetti.launch({
+                        particleCount: 200,
+                        duration: 4000
+                    });
+                }, 500);
+            }
         } else {
-            msg = '😢 Vous avez perdu...';
+            message = 'Dommage, vous avez perdu. 😔';
         }
 
-        if (msgEl) msgEl.textContent = msg;
+        if (messageEl) messageEl.textContent = message;
         if (modal) modal.classList.add('show');
     }
 
     showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
+        if (window.toast) {
+            // Map types if necessary or pass directly
+            // toast.js supports: success, error, info, combo
+            // multiplayer types: info, success, warning, danger
+            let toastType = type;
+            if (type === 'danger') toastType = 'error';
+            if (type === 'warning') toastType = 'info'; // or generic
 
-        const toast = document.createElement('div');
-        toast.className = 'toast';
-
-        let icon = 'info-circle';
-        if (type === 'success') icon = 'check-circle';
-        if (type === 'warning') icon = 'exclamation-triangle';
-        if (type === 'danger') icon = 'times-circle';
-
-        let color = 'white';
-        if (type === 'success') color = 'var(--success-color)';
-        if (type === 'warning') color = 'var(--warning-color)';
-        if (type === 'danger') color = 'var(--danger-color)';
-
-        toast.innerHTML = `
-            <i class="fas fa-${icon}" style="color: ${color}; font-size: 1.2rem;"></i>
-            <span>${message}</span>
-        `;
-
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100%)';
-            setTimeout(() => toast.remove(), 300);
-        }, 3000);
+            window.toast.show(message, toastType);
+        } else {
+            // Simple fallback
+            console.log(`[Toast] ${type}: ${message}`);
+        }
     }
 
     copyRoomCode() {

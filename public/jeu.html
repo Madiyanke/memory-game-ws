@@ -11,12 +11,23 @@
 
 <body class="game-page">
     <div class="container">
-        <header class="text-center" style="margin-bottom: 1rem;">
+        <header class="text-center" role="banner" style="margin-bottom: 1rem;">
             <div style="display: flex; align-items: center; justify-content: center; gap: 1rem;">
                 <h1>Memory</h1>
                 <span class="score-badge" id="salle-code" style="font-size: 1rem; opacity: 0.8;">CODE: ----</span>
             </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container" role="region" aria-label="Progression du jeu" style="margin-top: 1rem;">
+                <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">
+                    <div id="progress-fill" class="progress-fill"></div>
+                </div>
+                <div id="progress-text" class="progress-text">En attente de joueurs...</div>
+            </div>
         </header>
+
+        <!-- Screen Reader Announcements -->
+        <div id="sr-announcements" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 
         <!-- Game Info / Status -->
         <div id="tour-indicator" class="glass-panel"
@@ -135,6 +146,8 @@
     <!-- Scripts -->
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/soundManager.js"></script>
+    <script src="js/confetti.js"></script>
+    <script src="js/toast.js"></script>
     <script src="js/multiplayer.js"></script>
 </body>
 
