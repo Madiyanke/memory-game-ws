@@ -501,11 +501,13 @@ h1 {
     padding: 2.5rem;
     max-width: 500px;
     width: 90%;
+    display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
+    text-align: center;
     font-size: 3rem;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .card-front {
@@ -1291,4 +1293,119 @@ h1 {
     gap: 1rem;
     justify-content: center;
     margin-top: 1.5rem;
+}
+
+/* Difficulty Selection Modal */
+.difficulty-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+    width: 100%;
+    max-width: 600px;
+}
+
+.difficulty-btn {
+    background: var(--glass-bg);
+    border: 2px solid var(--glass-border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    color: var(--text-color);
+}
+
+.difficulty-btn:hover {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: var(--primary-color);
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(99, 102, 241, 0.4);
+}
+
+.difficulty-btn i {
+    color: var(--warning-color);
+    font-size: 1.2rem;
+}
+
+.difficulty-label {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-top: 0.5rem;
+}
+
+.difficulty-cards {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+/* Dynamic Grid Layouts for Different Card Counts */
+.game-board.cards-8 {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.game-board.cards-16 {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1.5rem;
+}
+
+.game-board.cards-24 {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 1.2rem;
+}
+
+.game-board.cards-32 {
+    grid-template-columns: repeat(8, 1fr);
+    gap: 1rem;
+}
+
+/* Responsive Grid Adjustments */
+@media (max-width: 1200px) {
+    .game-board.cards-32 {
+        grid-template-columns: repeat(6, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .difficulty-grid {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .difficulty-btn {
+        padding: 1rem;
+    }
+
+    .game-board.cards-24 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .game-board.cards-32 {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .game-board.cards-8 {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1rem;
+    }
+
+    .game-board.cards-16 {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.8rem;
+    }
+
+    .game-board.cards-24 {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.6rem;
+    }
+
+    .game-board.cards-32 {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 0.5rem;
+    }
 }

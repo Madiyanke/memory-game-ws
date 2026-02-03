@@ -4,6 +4,7 @@ class MemorySolo {
         this.flippedCards = [];
         this.matchedPairs = 0;
         this.totalPairs = 8;
+        this.selectedCardCount = parseInt(localStorage.getItem('memoryGameDifficulty')) || 16;
         this.isLocked = false;
         this.timerInterval = null;
         this.startTime = null;
@@ -12,9 +13,10 @@ class MemorySolo {
         this.init();
     }
 
+
     init() {
         this.setupUI();
-        this.startNewGame();
+        this.setupDifficultySelection();
     }
 
     setupUI() {
@@ -28,6 +30,28 @@ class MemorySolo {
             this.startNewGame();
             const modal = document.getElementById('finPartieModal');
             if (modal) modal.classList.remove('show');
+        });
+    }
+
+    setupDifficultySelection() {
+        const difficultyModal = document.getElementById('difficultyModal');
+        const difficultyBtns = document.querySelectorAll('.difficulty-btn');
+
+        difficultyBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cardCount = parseInt(btn.dataset.cards);
+                this.selectedCardCount = cardCount;
+                this.totalPairs = cardCount / 2;
+
+                // Save preference to localStorage
+                localStorage.setItem('memoryGameDifficulty', cardCount);
+
+                // Close difficulty modal
+                if (difficultyModal) difficultyModal.classList.remove('show');
+
+                // Start the game
+                this.startNewGame();
+            });
         });
     }
 
@@ -47,8 +71,13 @@ class MemorySolo {
     }
 
     generateCards() {
-        const symbols = ['🍎', '🍌', '🍒', '🍇', '🍊', '🍓', '🍑', '🍍', '🥭', '🍉', '🍐', '🥝'];
-        const selected = symbols.slice(0, 8);
+        // Expanded symbol pool to support up to 32 cards (16 pairs)
+        const symbols = [
+            '🍎', '🍌', '🍒', '🍇', '🍊', '🍓', '🍑', '🍍',
+            '🥭', '🍉', '🍐', '🥝', '🍋', '🥑', '🍆', '🌽'
+        ];
+        const pairsNeeded = this.selectedCardCount / 2;
+        const selected = symbols.slice(0, pairsNeeded);
         const deck = [...selected, ...selected];
         return deck.sort(() => Math.random() - 0.5);
     }
@@ -56,6 +85,11 @@ class MemorySolo {
     generateGameBoard() {
         const board = document.getElementById('game-board');
         board.innerHTML = '';
+
+        // Remove all previous grid classes
+        board.className = 'game-board';
+        // Add appropriate grid class based on card count
+        board.classList.add(`cards-${this.selectedCardCount}`);
 
         this.cards.forEach((symbol, index) => {
             const card = document.createElement('div');
@@ -164,11 +198,22 @@ class MemorySolo {
     }
 
     endGame() {
+        console.log('🎉 Game completed! Showing victory modal...');
+        console.log(`Matched pairs: ${this.matchedPairs}/${this.totalPairs}`);
+
         clearInterval(this.timerInterval);
         const modal = document.getElementById('finPartieModal');
         const msg = document.getElementById('message-resultat');
+
+        console.log('Modal element:', modal);
+
         if (msg) msg.textContent = `Bravo ! Terminé en ${this.moves} coups.`;
-        if (modal) modal.classList.add('show');
+        if (modal) {
+            modal.classList.add('show');
+            console.log('✅ Modal "show" class added');
+        } else {
+            console.error('❌ Modal element not found!');
+        }
         if (window.soundManager) window.soundManager.playWin();
     }
 

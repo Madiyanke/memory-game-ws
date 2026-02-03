@@ -39,8 +39,10 @@ app.get('/jeu', (req, res) => {
 
 // API pour créer/rejoindre des salles
 app.post('/api/creer-salle', (req, res) => {
-  const roomCode = roomManager.createRoom();
-  res.json({ success: true, roomCode });
+  const { cardCount } = req.body;
+  const validCardCount = [8, 16, 24, 32].includes(cardCount) ? cardCount : 16;
+  const roomCode = roomManager.createRoom(validCardCount);
+  res.json({ success: true, roomCode, cardCount: validCardCount });
 });
 
 app.post('/api/rejoindre-salle', (req, res) => {

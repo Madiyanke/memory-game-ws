@@ -264,8 +264,8 @@ class GameManager {
         this.clearTurnTimer(roomCode);
         this.clearMatchTimer(roomCode);
 
-        // Reset state
-        room.cards = this.roomManager.generateCards();
+        // Reset state with same card count
+        room.cards = this.roomManager.generateCards(room.totalPairs);
         room.cardsState = {};
         room.flippedCards = [];
         room.scores = { player1: 0, player2: 0 };
@@ -292,6 +292,7 @@ class GameManager {
             gameState: room.gameState,
             currentPlayer: room.currentPlayer,
             scores: room.scores,
+            cardCount: room.cardCount,
             flippedCards: room.flippedCards,
             flippedValues: room.flippedCards.reduce((acc, idx) => ({ ...acc, [idx]: room.cards[idx] }), {}),
             cardsState: room.cardsState || {},

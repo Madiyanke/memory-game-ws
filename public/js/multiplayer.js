@@ -5,6 +5,7 @@ class MemoryMultiplayer {
         this.playerRole = null;
         this.gameState = 'waiting';
         this.currentPlayer = null;
+        this.cardCount = 16; // Default
         this.flippedCards = [];
         this.flippedValues = {};
         this.cardsState = {};
@@ -144,6 +145,7 @@ class MemoryMultiplayer {
         this.roomCode = data.code;
         this.gameState = data.gameState;
         this.currentPlayer = data.currentPlayer;
+        this.cardCount = data.cardCount || 16;
         this.cardsState = data.cardsState || {};
         this.flippedCards = data.flippedCards || [];
         this.flippedValues = data.flippedValues || {};
@@ -226,7 +228,11 @@ class MemoryMultiplayer {
         if (!gameBoard) return;
         gameBoard.innerHTML = '';
 
-        for (let i = 0; i < 16; i++) {
+        // Remove all previous grid classes and add appropriate one
+        gameBoard.className = 'game-board';
+        gameBoard.classList.add(`cards-${this.cardCount}`);
+
+        for (let i = 0; i < this.cardCount; i++) {
             const card = document.createElement('div');
             card.className = 'card';
             card.dataset.index = i;

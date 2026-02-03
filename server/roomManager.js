@@ -4,18 +4,20 @@ class RoomManager {
         this.reapTimers = new Map(); // timers to delete empty rooms after a grace period
     }
 
-    createRoom() {
+    createRoom(cardCount = 16) {
         const roomCode = this.generateRoomCode();
+        const totalPairs = cardCount / 2;
         const room = {
             code: roomCode,
             players: [],
             gameState: 'waiting', // waiting, playing, finished
             currentPlayer: null,
-            cards: this.generateCards(),
+            cardCount: cardCount,
+            cards: this.generateCards(totalPairs),
             flippedCards: [],
             scores: { player1: 0, player2: 0 },
             matchedPairs: 0,
-            totalPairs: 8,
+            totalPairs: totalPairs,
             createdAt: Date.now(),
             lastActivity: Date.now()
         };
@@ -42,9 +44,13 @@ class RoomManager {
         return code;
     }
 
-    generateCards() {
-        const symbols = ['🍎', '🍌', '🍒', '🍇', '🍊', '🍓', '🍑', '🍍', '🥭', '🍉', '🍐', '🥝'];
-        const selectedSymbols = symbols.slice(0, 8);
+    generateCards(pairsNeeded = 8) {
+        // Expanded symbol pool to support up to 32 cards (16 pairs)
+        const symbols = [
+            '🍎', '🍌', '🍒', '🍇', '🍊', '🍓', '🍑', '🍍',
+            '🥭', '🍉', '🍐', '🥝', '🍋', '🥑', '🍆', '🌽'
+        ];
+        const selectedSymbols = symbols.slice(0, pairsNeeded);
         const cards = [...selectedSymbols, ...selectedSymbols];
         return this.shuffleArray(cards);
     }
