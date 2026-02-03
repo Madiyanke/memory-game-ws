@@ -327,11 +327,8 @@ class MemoryMultiplayer {
 
     updateScores(scores) {
         if (!scores) return;
-        const score1El = document.getElementById('score-joueur1');
-        const score2El = document.getElementById('score-joueur2');
-
-        if (score1El) this.animateNumber(score1El, parseInt(score1El.textContent), scores.player1);
-        if (score2El) this.animateNumber(score2El, parseInt(score2El.textContent), scores.player2);
+        document.getElementById('score-joueur1').textContent = scores.player1;
+        document.getElementById('score-joueur2').textContent = scores.player2;
         document.getElementById('final-score1').textContent = scores.player1;
         document.getElementById('final-score2').textContent = scores.player2;
     }
@@ -449,70 +446,21 @@ class MemoryMultiplayer {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
-        if (c1) {
-            c1.classList.add('matched');
-            c1.setAttribute('aria-label', `Carte ${idx1 + 1}, paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'}`);
-            c1.setAttribute('aria-disabled', 'true');
-        }
-        if (c2) {
-            c2.classList.add('matched');
-            c2.setAttribute('aria-label', `Carte ${idx2 + 1}, paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'}`);
-            c2.setAttribute('aria-disabled', 'true');
-        }
-
-        // UX Feedback
-        if (player === this.playerRole) {
-            HapticFeedback.success();
-            this.combo++;
-
-            // Combo Toasts
-            if (window.toast) {
-                if (this.combo === 3) window.toast.combo('🔥 En feu ! 3 combos !');
-                else if (this.combo === 5) window.toast.combo('🚀 Incroyable ! 5 combos !');
-                else if (this.combo >= 2) window.toast.success(`Combo x${this.combo} !`, 1500);
-            }
-        } else {
-            // Reset local combo if opponent scores (optional game design choice, helps track "your" streak)
-            this.combo = 0;
-        }
-
-        // Global Announcement
-        this.announce(`Paire trouvée par ${player === this.playerRole ? 'vous' : 'adversaire'} !`);
-
-        this.updateProgress();
+        if (c1) c1.classList.add('matched');
+        if (c2) c2.classList.add('matched');
     }
 
     hideCards(idx1, idx2) {
         const c1 = document.querySelector(`.card[data-index="${idx1}"]`);
         const c2 = document.querySelector(`.card[data-index="${idx2}"]`);
 
-        // Haptic Error only if it was current player's turn (approximate check or always feedback)
-        // Better: always feedback for game state change
-        // But vibration only if meaningful? Let's do it if we are watching.
-        if (this.currentPlayer === this.playerRole) {
-            HapticFeedback.error();
-            this.combo = 0; // Reset combo
-        }
-
-        if (c1) c1.classList.add('shake', 'mismatch');
-        if (c2) c2.classList.add('shake', 'mismatch');
-
-        this.announce('Pas de correspondance, cartes retournées');
+        if (c1) c1.classList.add('shake');
+        if (c2) c2.classList.add('shake');
 
         setTimeout(() => {
-            if (c1) c1.classList.remove('flipped', 'shake', 'mismatch');
-            if (c2) c2.classList.remove('flipped', 'shake', 'mismatch');
-
-            // Reset ARIA
-            if (c1) {
-                c1.setAttribute('aria-label', `Carte ${idx1 + 1} sur ${this.cardCount}, face cachée`);
-                c1.setAttribute('aria-pressed', 'false');
-            }
-            if (c2) {
-                c2.setAttribute('aria-label', `Carte ${idx2 + 1} sur ${this.cardCount}, face cachée`);
-                c2.setAttribute('aria-pressed', 'false');
-            }
-        }, 800);
+            if (c1) c1.classList.remove('flipped', 'shake');
+            if (c2) c2.classList.remove('flipped', 'shake');
+        }, 500);
     }
 
     switchTurn(nouveauJoueur) {
@@ -559,46 +507,51 @@ class MemoryMultiplayer {
 
     showGameResult(data) {
         const modal = document.getElementById('finPartieModal');
-        const messageEl = document.getElementById('message-resultat');
+        const msgEl = document.getElementById('message-resultat');
 
-        let message = '';
-        if (data.gagnant === 'égalité') { // Changed from 'winner' to 'gagnant' to match original code
-            message = 'Match nul ! 🤝';
-        } else if (data.gagnant === this.playerRole) { // Changed from 'winner' to 'gagnant'
-            message = 'Félicitations ! Vous avez gagné ! 🎉';
-            HapticFeedback.victory();
-
-            // Launch Confetti
-            if (window.confetti) {
-                setTimeout(() => {
-                    window.confetti.launch({
-                        particleCount: 200,
-                        duration: 4000
-                    });
-                }, 500);
-            }
+        let msg = '';
+        if (data.gagnant === 'égalité') {
+            msg = '🤝 Match Nul !';
+        } else if (data.gagnant === this.playerRole) {
+            msg = '🏆 Vous avez GAGNÉ !';
+            if (window.soundManager) window.soundManager.playWin();
         } else {
-            message = 'Dommage, vous avez perdu. 😔';
+            msg = '😢 Vous avez perdu...';
         }
 
-        if (messageEl) messageEl.textContent = message;
+        if (msgEl) msgEl.textContent = msg;
         if (modal) modal.classList.add('show');
     }
 
     showToast(message, type = 'info') {
-        if (window.toast) {
-            // Map types if necessary or pass directly
-            // toast.js supports: success, error, info, combo
-            // multiplayer types: info, success, warning, danger
-            let toastType = type;
-            if (type === 'danger') toastType = 'error';
-            if (type === 'warning') toastType = 'info'; // or generic
+        const container = document.getElementById('toast-container');
+        if (!container) return;
 
-            window.toast.show(message, toastType);
-        } else {
-            // Simple fallback
-            console.log(`[Toast] ${type}: ${message}`);
-        }
+        const toast = document.createElement('div');
+        toast.className = 'toast';
+
+        let icon = 'info-circle';
+        if (type === 'success') icon = 'check-circle';
+        if (type === 'warning') icon = 'exclamation-triangle';
+        if (type === 'danger') icon = 'times-circle';
+
+        let color = 'white';
+        if (type === 'success') color = 'var(--success-color)';
+        if (type === 'warning') color = 'var(--warning-color)';
+        if (type === 'danger') color = 'var(--danger-color)';
+
+        toast.innerHTML = `
+            <i class="fas fa-${icon}" style="color: ${color}; font-size: 1.2rem;"></i>
+            <span>${message}</span>
+        `;
+
+        container.appendChild(toast);
+
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
     }
 
     copyRoomCode() {
