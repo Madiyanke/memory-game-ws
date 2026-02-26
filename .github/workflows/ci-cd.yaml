@@ -54,12 +54,13 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: hamidou # Ton utilisateur sur le VPS
+          username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
           # Voici les commandes qui seront tapées automatiquement sur ton VPS :
           script: |
             # 1. On s'assure que Kubeconfig est bien chargé pour l'utilisateur
-            export KUBECONFIG=/home/hamidou/.kube/config
+            export KUBECONFIG=/home/${{ secrets.VPS_USERNAME }}/.kube/config
             
             # 2. On se place dans le dossier du projet 
             cd /home/hamidou/memory-game-ws
