@@ -1,0 +1,75 @@
+name: CI/CD Pipeline  PoC
+
+# 1. DÉCLENCHEURS : Le pipeline se lance à chaque push sur la branche main
+on:
+  push:
+    branches: [ "main" ]
+
+# 2. VARIABLES GLOBALES
+env:
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/memory-game
+
+jobs:
+  # =========================================================
+  # JOB 1 : CONSTRUCTION ET PUBLICATION DE L'IMAGE
+  # =========================================================
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name:  Récupération du code source
+        uses: actions/checkout@v4
+
+      - name: Connexion à DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name:  Extraction du tag (Git SHA)
+        id: vars
+        # On utilise les 7 premiers caractères du commit Git comme tag unique
+        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Build et Push de l'image Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ env.DOCKER_IMAGE }}:latest
+            ${{ env.DOCKER_IMAGE }}:${{ steps.vars.outputs.sha_short }}
+
+  # =========================================================
+  # JOB 2 : DÉPLOIEMENT SUR LE VPS VIA SSH ET HELM
+  # =========================================================
+  deploy-to-vps:
+    needs: build-and-push # Ce job attend que le build soit terminé
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extraction du tag (Git SHA)
+        id: vars
+        run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Exécution du script de déploiement via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: hamidou # Ton utilisateur sur le VPS
+          key: ${{ secrets.VPS_SSH_KEY }}
+          # Voici les commandes qui seront tapées automatiquement sur ton VPS :
+          script: |
+            # 1. On s'assure que Kubeconfig est bien chargé pour l'utilisateur
+            export KUBECONFIG=/home/hamidou/.kube/config
+            
+            # 2. On se place dans le dossier du projet 
+            cd /home/hamidou/memory-game-ws
+            
+            # 3. On met à jour le dépôt Git local pour avoir le dernier Chart Helm
+            git pull origin main
+            
+            # 4. Le fameux déploiement Helm automatisé !
+            echo " Lancement de Helm avec le tag: ${{ steps.vars.outputs.sha_short }}"
+            helm upgrade --install memory-game-prod ./memory-game-chart \
+              --namespace kalisio-prod \
+              --create-namespace \
+              --set image.tag=${{ steps.vars.outputs.sha_short }}
