@@ -71,6 +71,6 @@ jobs:
             # 4. Le fameux déploiement Helm automatisé !
             echo " Lancement de Helm avec le tag: ${{ steps.vars.outputs.sha_short }}"
             helm upgrade --install memory-game-prod ./memory-game-chart \
-              --namespace kalisio-prod \
+              --namespace memory-game-prod \
               --create-namespace \
               --set image.tag=${{ steps.vars.outputs.sha_short }}
