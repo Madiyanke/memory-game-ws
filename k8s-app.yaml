@@ -1,0 +1,50 @@
+---
+# 0. LE NAMESPACE
+# On crée la "bulle" isolée d'abord.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: memory-game-dev
+
+---
+# 1. LE DÉPLOIEMENT
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: memory-game-deployment
+  namespace: memory-game-dev
+  labels:
+    app: memory-game
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: memory-game
+  template:
+    metadata:
+      labels:
+        app: memory-game
+    spec:
+      containers:
+      - name: memory-game-container
+        image: memory-game:v1
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 3000
+
+---
+# 2. LE SERVICE
+apiVersion: v1
+kind: Service
+metadata:
+  name: memory-game-service
+  namespace: memory-game-dev
+spec:
+  type: NodePort
+  selector:
+    app: memory-game
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      nodePort: 30001
