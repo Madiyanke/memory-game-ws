@@ -1,0 +1,21 @@
+# Docker Compose — Production (VPS)
+# Usage : IMAGE_TAG=latest docker compose -f docker-compose.prod.yml up -d
+#
+# L'image est tirée depuis DockerHub.
+# La variable IMAGE_TAG est injectée par le pipeline CI/CD.
+
+services:
+  memory-game:
+    image: ${DOCKERHUB_USERNAME}/memory-game:${IMAGE_TAG:-latest}
+    container_name: memory-game-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+    volumes:
+      - app-logs:/app/logs
+
+volumes:
+  app-logs:
