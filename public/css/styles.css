@@ -714,20 +714,11 @@ h1 {
     }
 }
 
-@media (max-width: 600px) {
-    .game-board {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 1rem;
-    }
+/* Old grid overrides removed — V2 grid system (.cards-8, .cards-16, etc.) handles this */
 
+@media (max-width: 600px) {
     h1 {
         font-size: 2.5rem;
-    }
-}
-
-@media (max-width: 400px) {
-    .game-board {
-        grid-template-columns: repeat(2, 1fr);
     }
 }
 
@@ -1085,11 +1076,12 @@ h1 {
         padding-bottom: env(safe-area-inset-bottom, 0.3rem);
     }
 
-    /* CRITICAL: Force Square Cards */
+    /* CRITICAL: Cards fill grid cells without overflow */
     .card {
-        aspect-ratio: 1 / 1 !important;
-        width: 100%;
-        height: auto !important;
+        aspect-ratio: unset !important;
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
     }
 
     .card-face {
@@ -1335,57 +1327,7 @@ h1 {
 }
 
 
-.card {
-    width: 100%;
-    height: 100%;
-    aspect-ratio: 1 / 1;
-    max-height: unset;
-    /* Remove arbitrary limit */
-}
-
-/* Ensure card content fits */
-.card-face {
-    font-size: 8vmin;
-}
-
-.card-face {
-    border-radius: 8px;
-    /* Slightly less rounded */
-    font-size: 8vmin;
-    /* Dynamic font size for icons */
-}
-
-/* Modal Fixes for Mobile */
-@media (max-width: 600px) {
-    .modal-content {
-        padding: 1.2rem;
-        width: 92%;
-        border-radius: 16px;
-    }
-
-    .modal-content h2 {
-        font-size: 1.3rem;
-        margin-bottom: 0.75rem;
-    }
-
-    .modal-content p {
-        font-size: 0.9rem;
-        margin-bottom: 1rem;
-    }
-
-    .modal-content .fa-3x {
-        font-size: 1.8rem !important;
-    }
-
-    .modal-content .mb-4 {
-        margin-bottom: 0.75rem;
-    }
-
-    #code-attente {
-        font-size: 1.5rem !important;
-        word-break: break-all;
-    }
-}
+/* Old card/card-face overrides and first modal block removed — handled by V2 system */
 
 /* Transform Tour Indicator */
 #tour-indicator {
@@ -1410,45 +1352,7 @@ h1 {
     /* Hide "Temps restant" label */
 }
 
-/* Game Board - maximize space */
-.game-board {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    grid-template-rows: repeat(4, 1fr);
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    /* Force it to stay within flex container */
-    gap: 2vmin;
-    padding: 2vmin;
-    align-items: center;
-    /* Center cards in their cells */
-    justify-items: center;
-    overflow: hidden;
-    /* Prevent scrolling */
-    flex-grow: 1;
-    /* Take all remaining space */
-}
-
-/* Force Players to be compact side-by-side in the middle column if needed */
-
-
-
-.card {
-    width: 100%;
-    height: 100%;
-    aspect-ratio: unset;
-    /* Allow flexible shape to fill grid */
-    min-height: 0;
-    max-height: 100%;
-}
-
-/* Ensure card content fits */
-.card-face {
-    border-radius: 8px;
-    font-size: clamp(1rem, 5vmin, 2rem);
-    /* Dynamic font size */
-}
+/* Old game-board/card overrides removed — V2 grid system handles this */
 
 /* Modal Fixes for Mobile */
 @media (max-width: 600px) {
@@ -1476,20 +1380,16 @@ h1 {
         margin-bottom: 0.75rem;
     }
 
+    .modal .difficulty-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 0.5rem;
+    }
+
     #code-attente {
         font-size: 1.5rem !important;
         word-break: break-all;
     }
 }
-
-/* Compact Button */
-#quitter-btn {
-    padding: 0.5rem;
-    font-size: 0.9rem;
-}
-
-
-
 
 /* Very small screens adjustment */
 @media (max-width: 380px) {
