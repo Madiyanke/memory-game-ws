@@ -1,30 +1,32 @@
-# Utiliser une image Node.js officielle
 FROM node:18-alpine
+
+# curl pour le healthcheck Docker
 RUN apk add --no-cache curl
 
-# Créer le répertoire de l'application
 WORKDIR /app
 
-# Copier les fichiers de configuration
+# 1. Copier uniquement package.json pour profiter du cache Docker
 COPY server/package.json ./
 
-# Installer les dépendances
-RUN npm install --production
+# 2. Installer les dépendances de production
+RUN npm install --omit=dev
 
-# Copier le code source
-COPY . .
+# 3. Copier le code source
+COPY server/ ./server/
+COPY public/ ./public/
 
-# Créer un utilisateur non-root pour la sécurité
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
-RUN chown -R nextjs:nodejs /app
-USER nextjs
+# 4. Utilisateur non-root (sécurité)
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -S appuser -u 1001 -G appgroup && \
+    chown -R appuser:appgroup /app
+USER appuser
 
-# Exposer le port
 EXPOSE 3000
 
-# Variable d'environnement pour le port
-ENV PORT 3000
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Démarrer l'application
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:3000 || exit 1
+
 CMD ["node", "server/server.js"]

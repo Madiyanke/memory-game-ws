@@ -1,0 +1,13 @@
+node_modules
+server/node_modules
+.git
+.github
+.gitignore
+.dockerignore
+*.md
+docs/
+k8s-app.yaml
+docker-compose*.yml
+docker-compose*.yaml
+logs/
+.env*
