@@ -370,6 +370,13 @@ class MemoryMultiplayer {
             const card = document.createElement('div');
             card.className = 'card';
             card.dataset.index = i;
+
+            // Accessibility attributes
+            card.setAttribute('role', 'button');
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('aria-label', `Carte ${i + 1} sur ${this.cardCount}, face cachée`);
+            card.setAttribute('aria-pressed', 'false');
+
             card.innerHTML = `
                 <div class="card-face card-front">
                     <i class="fas fa-question" style="font-size: 1.5rem; opacity: 0.5;"></i>
