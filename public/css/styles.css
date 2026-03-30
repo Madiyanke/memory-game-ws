@@ -932,6 +932,7 @@ h1 {
         height: 100dvh;
         max-height: 100dvh;
         padding: 0.4rem;
+        padding-bottom: calc(0.4rem + env(safe-area-inset-bottom, 0.5rem));
         display: flex;
         flex-direction: column;
         overflow: hidden !important;
@@ -1081,6 +1082,7 @@ h1 {
         overflow: hidden;
         display: grid !important;
         align-content: center;
+        padding-bottom: env(safe-area-inset-bottom, 0.3rem);
     }
 
     /* CRITICAL: Force Square Cards */
@@ -1132,6 +1134,7 @@ h1 {
     /* SOLO MODE: Additional optimizations */
     body.game-page.solo-mode .container {
         padding: 0.3rem !important;
+        padding-bottom: calc(0.3rem + env(safe-area-inset-bottom, 0.5rem)) !important;
     }
 
     body.game-page.solo-mode header {
