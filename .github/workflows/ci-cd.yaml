@@ -1,56 +1,22 @@
-name: CI/CD Pipeline  PoC
+name: CI/CD Pipeline PoC
 
-# 1. DÉCLENCHEURS : Le pipeline se lance à chaque push sur la branche main
+# Le pipeline se lance à chaque push sur la branche main
 on:
   push:
     branches: [ "main" ]
 
-# 2. VARIABLES GLOBALES
-env:
-  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/memory-game
-
 jobs:
   # =========================================================
-  # JOB 1 : CONSTRUCTION ET PUBLICATION DE L'IMAGE
+  # JOB UNIQUE : BUILD & DEPLOY SUR LE VPS (MINIKUBE)
   # =========================================================
-  build-and-push:
-    runs-on: ubuntu-latest
-    steps:
-      - name:  Récupération du code source
-        uses: actions/checkout@v4
-
-      - name: Connexion à DockerHub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name:  Extraction du tag (Git SHA)
-        id: vars
-        # On utilise les 7 premiers caractères du commit Git comme tag unique
-        run: echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Build et Push de l'image Docker
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: |
-            ${{ env.DOCKER_IMAGE }}:latest
-            ${{ env.DOCKER_IMAGE }}:${{ steps.vars.outputs.sha_short }}
-
-  # =========================================================
-  # JOB 2 : DÉPLOIEMENT SUR LE VPS VIA SSH ET KUBECTL
-  # =========================================================
-  deploy-to-vps:
-    needs: build-and-push # Ce job attend que le build soit terminé
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Extraction du tag (Git SHA)
         id: vars
         run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
-      - name: Déploiement via SSH et kubectl
+      - name: Build et déploiement via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
@@ -58,21 +24,28 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
-            # 1. Charger la config Kubernetes
+            # 1. Charger les configs
             export KUBECONFIG=/home/${{ secrets.VPS_USERNAME }}/.kube/config
 
-            # 2. Mettre à jour le dépôt Git local
+            # 2. Mettre à jour le code source
             cd /home/hamidou/memory-game-ws
             git pull origin main
 
-            # 3. Remplacer le placeholder par l'image DockerHub taguée
-            sed "s|IMAGE_PLACEHOLDER|${{ secrets.DOCKERHUB_USERNAME }}/memory-game:${{ steps.vars.outputs.sha_short }}|g" \
-              k8s-app.yaml > /tmp/k8s-app-deploy.yaml
+            # 3. Basculer vers le Docker daemon de Minikube
+            eval $(minikube docker-env)
 
-            # 4. Appliquer le manifeste Kubernetes
-            echo "Déploiement avec le tag: ${{ steps.vars.outputs.sha_short }}"
-            kubectl apply -f /tmp/k8s-app-deploy.yaml
+            # 4. Builder l'image directement dans Minikube
+            IMAGE_TAG="memory-game:${{ steps.vars.outputs.sha_short }}"
+            echo "Build de l'image: $IMAGE_TAG"
+            docker build -t $IMAGE_TAG .
 
-            # 5. Attendre que le déploiement soit prêt
+            # 5. Mettre à jour le deployment avec la nouvelle image
+            kubectl set image deployment/memory-game-deployment \
+              memory-game-container=$IMAGE_TAG \
+              -n memory-game-dev
+
+            # 6. Attendre que le rollout soit terminé
             kubectl rollout status deployment/memory-game-deployment \
               -n memory-game-dev --timeout=120s
+
+            echo "Déploiement réussi avec le tag: ${{ steps.vars.outputs.sha_short }}"
