@@ -27,8 +27,8 @@ spec:
     spec:
       containers:
       - name: memory-game-container
-        image: memory-game:v1
-        imagePullPolicy: IfNotPresent
+        image: IMAGE_PLACEHOLDER
+        imagePullPolicy: Always
         ports:
         - containerPort: 3000
 

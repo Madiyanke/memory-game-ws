@@ -40,7 +40,7 @@ jobs:
             ${{ env.DOCKER_IMAGE }}:${{ steps.vars.outputs.sha_short }}
 
   # =========================================================
-  # JOB 2 : DÉPLOIEMENT SUR LE VPS VIA SSH ET HELM
+  # JOB 2 : DÉPLOIEMENT SUR LE VPS VIA SSH ET KUBECTL
   # =========================================================
   deploy-to-vps:
     needs: build-and-push # Ce job attend que le build soit terminé
@@ -50,27 +50,29 @@ jobs:
         id: vars
         run: echo "sha_short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
-      - name: Exécution du script de déploiement via SSH
+      - name: Déploiement via SSH et kubectl
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          # Voici les commandes qui seront tapées automatiquement sur ton VPS :
           script: |
-            # 1. On s'assure que Kubeconfig est bien chargé pour l'utilisateur
+            # 1. Charger la config Kubernetes
             export KUBECONFIG=/home/${{ secrets.VPS_USERNAME }}/.kube/config
-            
-            # 2. On se place dans le dossier du projet 
+
+            # 2. Mettre à jour le dépôt Git local
             cd /home/hamidou/memory-game-ws
-            
-            # 3. On met à jour le dépôt Git local pour avoir le dernier Chart Helm
             git pull origin main
-            
-            # 4. Le fameux déploiement Helm automatisé !
-            echo " Lancement de Helm avec le tag: ${{ steps.vars.outputs.sha_short }}"
-            helm upgrade --install memory-game-prod ./memory-game-chart \
-              --namespace memory-game-prod \
-              --create-namespace \
-              --set image.tag=${{ steps.vars.outputs.sha_short }}
+
+            # 3. Remplacer le placeholder par l'image DockerHub taguée
+            sed "s|IMAGE_PLACEHOLDER|${{ secrets.DOCKERHUB_USERNAME }}/memory-game:${{ steps.vars.outputs.sha_short }}|g" \
+              k8s-app.yaml > /tmp/k8s-app-deploy.yaml
+
+            # 4. Appliquer le manifeste Kubernetes
+            echo "Déploiement avec le tag: ${{ steps.vars.outputs.sha_short }}"
+            kubectl apply -f /tmp/k8s-app-deploy.yaml
+
+            # 5. Attendre que le déploiement soit prêt
+            kubectl rollout status deployment/memory-game-deployment \
+              -n memory-game-dev --timeout=120s
